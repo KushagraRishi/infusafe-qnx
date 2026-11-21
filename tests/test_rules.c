@@ -124,19 +124,33 @@ static void test_air(void)
     warm_up(&c, &st, &seq, 10);
 
     pump_sample_t s = normal(++seq);
-    s.air_ul = 60.0;
+    s.air_total_ul = 60.0;
     safety_result_t r = safety_evaluate(&c, &st, &s, s.t_ns);
     CHECK(r.verdict == VERDICT_STOP && r.reason == REASON_AIR_BUBBLE,
           "one big bubble stops at once");
 
+    /* A bubble is still caught if the monitor missed the sample it
+     * arrived in: the running total carries it to the next look. */
+    safety_reset(&st, 1000.0);
+    seq = 0;
+    warm_up(&c, &st, &seq, 10);
+    seq += 5;                                /* five samples never seen */
+    s = normal(seq);
+    s.air_total_ul = 60.0;
+    r = safety_evaluate(&c, &st, &s, s.t_ns);
+    CHECK(r.reason == REASON_AIR_BUBBLE, "bubble in a missed sample is still caught");
+
     /* Many small bubbles add up. */
     safety_reset(&st, 1000.0);
     seq = 0;
+    warm_up(&c, &st, &seq, 1);               /* first look sets the reference */
     r.verdict = VERDICT_RUN;
     int n = 0;
+    double total = 0.0;
     while (r.verdict == VERDICT_RUN && n < 100) {
         s = normal(++seq);
-        s.air_ul = 10.0;
+        total += 10.0;
+        s.air_total_ul = total;
         r = safety_evaluate(&c, &st, &s, s.t_ns);
         n++;
     }

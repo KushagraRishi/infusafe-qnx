@@ -23,7 +23,7 @@ QEMU = [
     "-cpu", "max",
     # Instruction-count clock: guest time stays steady even though the
     # Mac is translating x86 to ARM.
-    "-icount", "shift=auto,align=off,sleep=on",
+    "-icount", "shift=0,align=off,sleep=on",
     "-kernel", IMAGE,
     "-display", "none",
     "-serial", "stdio",
@@ -51,6 +51,7 @@ def main():
             ch = chunk.decode("utf-8", "replace")
             buf.append(ch)
             out.write(ch)
+            if ch == "\n": out.flush()
             sys.stdout.write(ch)
             sys.stdout.flush()
 

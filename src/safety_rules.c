@@ -102,12 +102,18 @@ safety_result_t safety_evaluate(const safety_config_t *cfg,
     if (!fresh) return r;   /* nothing new to judge */
 
     /* 2. Air in line: one big bubble, or too much air over time. */
-    if (s->air_ul > 0.0) {
-        if (s->air_ul >= cfg->bubble_max_ul) {
+    /* The detector keeps a running total; new air is what was added
+     * since our last look, even if we skipped samples in between. */
+    double new_air = 0.0;
+    if (st->have_air_ref) new_air = s->air_total_ul - st->air_ref_ul;
+    st->air_ref_ul = s->air_total_ul;
+    st->have_air_ref = 1;
+    if (new_air > 0.0) {
+        if (new_air >= cfg->bubble_max_ul) {
             r.verdict = VERDICT_STOP;
             r.reason = REASON_AIR_BUBBLE;
         }
-        air_push(st, s->t_ns, s->air_ul);
+        air_push(st, s->t_ns, new_air);
     }
     air_expire(st, s->t_ns, cfg->air_window_ns);
     if (r.verdict != VERDICT_STOP && st->air_total_ul >= cfg->air_window_max_ul) {

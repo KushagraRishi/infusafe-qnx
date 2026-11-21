@@ -43,22 +43,33 @@ static void publish(pump_t *p, const pump_sample_t *s)
     atomic_store_explicit(&p->slot.gen, g + 2, memory_order_release);
 }
 
-void pump_read(pump_t *p, pump_sample_t *out)
+int pump_read(pump_t *p, pump_sample_t *out)
 {
-    for (;;) {
+    /*
+     * Never spin until the writer finishes. On one CPU the monitor
+     * outranks the sensor thread, so if it preempted a half-done write,
+     * waiting would freeze both forever. Try a few times, then give up
+     * and let the caller keep its last good sample.
+     */
+    for (int tries = 0; tries < 4; tries++) {
         uint32_t g1 = atomic_load_explicit(&p->slot.gen, memory_order_acquire);
         if (g1 & 1u) continue;
-        *out = p->slot.sample;
+        pump_sample_t tmp = p->slot.sample;
         atomic_thread_fence(memory_order_acquire);
         uint32_t g2 = atomic_load_explicit(&p->slot.gen, memory_order_relaxed);
-        if (g1 == g2) return;
+        if (g1 == g2) {
+            *out = tmp;
+            return 0;
+        }
     }
+    return -1;
 }
 
 void pump_step(pump_t *p, uint64_t now_ns, double dt_s)
 {
     int pending = atomic_exchange(&p->pending_fault, (int)FAULT_NONE);
     if (pending != FAULT_NONE) {
+        p->bubble_done = 0;
         atomic_store(&p->active_fault, pending);
         atomic_store(&p->fault_at_ns, now_ns);
     }
@@ -78,7 +89,6 @@ void pump_step(pump_t *p, uint64_t now_ns, double dt_s)
     s.flow_ml_h = motor ? p->set_rate_ml_h + noise(p->set_rate_ml_h * 0.02) : 0.0;
     s.downstream_mmhg = 40.0 + noise(3.0);
     s.upstream_mmhg = 10.0 + noise(2.0);
-    s.air_ul = 0.0;
 
     switch (f) {
     case FAULT_OCCLUSION:
@@ -91,8 +101,11 @@ void pump_step(pump_t *p, uint64_t now_ns, double dt_s)
         s.flow_ml_h = p->set_rate_ml_h * 4.0 + noise(5.0);
         break;
     case FAULT_AIR:
-        /* The bubble reaches the detector 2 ms after the fault starts. */
-        if (since_ns >= 2000000ull && since_ns < 3000000ull) s.air_ul = 60.0;
+        /* One 60 uL bubble reaches the detector 2 ms after the fault starts. */
+        if (since_ns >= 2000000ull && !p->bubble_done) {
+            p->air_total_ul += 60.0;
+            p->bubble_done = 1;
+        }
         break;
     case FAULT_EMPTY_BAG:
         s.upstream_mmhg = -180.0 + noise(5.0);
@@ -104,6 +117,7 @@ void pump_step(pump_t *p, uint64_t now_ns, double dt_s)
 
     p->volume_ml += s.flow_ml_h * dt_s / 3600.0;
     s.volume_ml = p->volume_ml;
+    s.air_total_ul = p->air_total_ul;
     publish(p, &s);
 }
 

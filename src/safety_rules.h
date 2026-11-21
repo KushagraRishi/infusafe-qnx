@@ -19,7 +19,9 @@ typedef struct {
     double   flow_ml_h;          /* what the flow sensor measures */
     double   downstream_mmhg;    /* line pressure toward the patient */
     double   upstream_mmhg;      /* line pressure toward the bag */
-    double   air_ul;             /* air bubble seen this sample, microlitres */
+    double   air_total_ul;       /* all air the detector has ever seen, microlitres.
+                                    A running total, so a bubble is never lost
+                                    even if the monitor misses a sample. */
     double   volume_ml;          /* total delivered so far */
 } pump_sample_t;
 
@@ -69,6 +71,8 @@ typedef struct {
     unsigned air_head, air_len;
     double   air_total_ul;
     double   target_volume_ml;
+    double   air_ref_ul;         /* detector total at our last look */
+    int      have_air_ref;
 } safety_state_t;
 
 typedef struct {

@@ -45,6 +45,8 @@ typedef struct {
     double              set_rate_ml_h;
     uint64_t            seq;
     double              volume_ml;
+    double              air_total_ul;     /* detector's running total */
+    int                 bubble_done;
 } pump_t;
 
 void pump_init(pump_t *p, double set_rate_ml_h);
@@ -52,8 +54,9 @@ void pump_init(pump_t *p, double set_rate_ml_h);
 /* One sensor step. Call every 1 ms from the sensor thread. */
 void pump_step(pump_t *p, uint64_t now_ns, double dt_s);
 
-/* Copy the newest sample out without locking. */
-void pump_read(pump_t *p, pump_sample_t *out);
+/* Copy the newest sample out without locking or waiting.
+ * Returns -1 if a write was in progress; *out is then left unchanged. */
+int pump_read(pump_t *p, pump_sample_t *out);
 
 void pump_inject(pump_t *p, fault_t f);
 void pump_clear(pump_t *p);

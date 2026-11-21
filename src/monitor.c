@@ -95,6 +95,8 @@ void *monitor_thread(void *arg)
     uint64_t prev = m->start_ns;
     verdict_t last_verdict = VERDICT_RUN;
     reason_t last_reason = REASON_NONE;
+    pump_sample_t s;
+    memset(&s, 0, sizeof s);
 
     while (!atomic_load(&m->pump.quit)) {
         rt_ticker_wait(t);
@@ -115,9 +117,8 @@ void *monitor_thread(void *arg)
             __atomic_store_n(&m->reset_requested, 0, __ATOMIC_RELEASE);
             safety_reset(&m->st, m->volume_ml);
             /* Judge only samples taken after the clear, not the old one. */
-            pump_sample_t cur;
-            pump_read(&m->pump, &cur);
-            m->st.last_seq = cur.seq;
+            pump_read(&m->pump, &s);
+            m->st.last_seq = s.seq;
             m->st.last_new_sample_ns = woke;
             last_verdict = VERDICT_RUN;
             last_reason = REASON_NONE;
@@ -130,7 +131,9 @@ void *monitor_thread(void *arg)
         /* Once stopped, stay stopped until a nurse clears it. */
         if (last_verdict == VERDICT_STOP) continue;
 
-        pump_sample_t s;
+        /* If the sensor is mid-write, judge the last good sample. Its
+         * seq does not change, so a sensor that stays busy is caught
+         * by the stale check. */
         pump_read(&m->pump, &s);
         safety_result_t r = safety_evaluate(&m->cfg, &m->st, &s, woke);
 
@@ -163,7 +166,8 @@ void *monitor_thread(void *arg)
 int monitor_status_json(monitor_t *m, char *buf, size_t len)
 {
     pump_sample_t s;
-    pump_read(&m->pump, &s);
+    memset(&s, 0, sizeof s);
+    while (pump_read(&m->pump, &s) != 0) {}   /* low priority: may retry */
 
     pthread_mutex_lock(&m->lock);
     verdict_t v = m->verdict;
