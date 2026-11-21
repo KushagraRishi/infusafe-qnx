@@ -1,0 +1,59 @@
+###########################################################################
+# InfuSafe demo image for QNX 8.0, x86_64, booted by QEMU (-kernel).
+# Everything runs from RAM. Console is the first serial port.
+###########################################################################
+
+[image=0x200000]
+[virtual=x86_64,multiboot] .bootstrap = {
+    startup-x86 -v -D8250.0x3f8^0.115200
+    PATH=/proc/boot:/bin procnto-smp-instr -v
+}
+
+[+script] .script = {
+    procmgr_symlink ../../proc/boot/ldqnx-64.so.2 /usr/lib/ldqnx-64.so.2
+    procmgr_symlink ../../proc/boot /bin
+
+    display_msg "QNX 8.0 is up. Starting InfuSafe image."
+
+    pipe &
+    devc-ser8250 -e -b115200 0x3f8,4 &
+    waitfor /dev/ser1
+    reopen /dev/ser1
+
+    devc-pty &
+
+    display_msg "Type: infusafe -l   or   infusafe -b 100   or   ./demo.sh"
+    [+session] PATH=/proc/boot ksh -l &
+}
+
+[type=link] /tmp=/dev/shmem
+
+# Libraries
+ldqnx-64.so.2=${QNX_TARGET}/x86_64/usr/lib/ldqnx-64.so.2
+libc.so.6
+libm.so.3
+libgcc_s.so.1
+libsecpol.so.1
+libfsnotify.so.1
+libz.so.2
+
+# System
+pipe
+devc-ser8250
+devc-pty
+ksh
+pidin
+slay
+on
+toybox
+[type=link] cat=toybox
+[type=link] ls=toybox
+[type=link] sleep=toybox
+[type=link] uname=toybox
+[type=link] grep=toybox
+[type=link] head=toybox
+
+# InfuSafe
+[perms=0755] infusafe=/work/build/qnx-x86_64/infusafe
+[perms=0755] test_rules=/work/build/qnx-x86_64/test_rules
+[perms=0755] demo.sh=/work/qnx/demo.sh

@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "rt.h"
 
@@ -38,24 +39,50 @@ void *sensor_thread(void *arg)
     return NULL;
 }
 
+/*
+ * The monitor only records events in memory. It never prints: writing
+ * to a console can block, and a safety loop must never wait on I/O.
+ * The logger thread, at low priority, prints them later.
+ */
 static void log_event(monitor_t *m, const event_t *e)
 {
-    pthread_mutex_lock(&m->lock);
+    pthread_mutex_lock(&m->lock);    /* QNX mutexes inherit priority */
     m->events[m->n_events % EVENT_LOG_LEN] = *e;
     m->n_events++;
     pthread_mutex_unlock(&m->lock);
+}
 
-    if (e->latency_ns) {
-        printf("[%8.3f s] %-4s %-12s fault=%-11s stopped in %.3f ms\n",
-               (double)(e->t_ns - m->start_ns) / 1e9,
-               safety_verdict_name(e->verdict), safety_reason_name(e->reason),
-               fault_name((fault_t)e->fault), (double)e->latency_ns / 1e6);
-    } else {
-        printf("[%8.3f s] %-4s %-12s\n",
-               (double)(e->t_ns - m->start_ns) / 1e9,
-               safety_verdict_name(e->verdict), safety_reason_name(e->reason));
+void *logger_thread(void *arg)
+{
+    monitor_t *m = arg;
+    unsigned printed = 0;
+    while (!atomic_load(&m->pump.quit)) {
+        struct timespec ts = { 0, 20 * 1000000L };
+        nanosleep(&ts, NULL);
+
+        event_t batch[EVENT_LOG_LEN];
+        unsigned n = 0;
+        pthread_mutex_lock(&m->lock);
+        if (m->n_events - printed > EVENT_LOG_LEN) printed = m->n_events - EVENT_LOG_LEN;
+        while (printed < m->n_events) batch[n++] = m->events[printed++ % EVENT_LOG_LEN];
+        pthread_mutex_unlock(&m->lock);
+
+        for (unsigned i = 0; i < n && !m->quiet; i++) {
+            const event_t *e = &batch[i];
+            if (e->latency_ns) {
+                printf("[%8.3f s] %-4s %-12s fault=%-11s stopped in %.3f ms\n",
+                       (double)(e->t_ns - m->start_ns) / 1e9,
+                       safety_verdict_name(e->verdict), safety_reason_name(e->reason),
+                       fault_name((fault_t)e->fault), (double)e->latency_ns / 1e6);
+            } else {
+                printf("[%8.3f s] %-4s %-12s\n",
+                       (double)(e->t_ns - m->start_ns) / 1e9,
+                       safety_verdict_name(e->verdict), safety_reason_name(e->reason));
+            }
+        }
+        if (n) fflush(stdout);
     }
-    fflush(stdout);
+    return NULL;
 }
 
 void *monitor_thread(void *arg)

@@ -25,6 +25,7 @@
 
 #define PRIO_MONITOR 50
 #define PRIO_SENSOR  40
+#define PRIO_LOGGER  5
 
 static void sleep_ms(unsigned ms)
 {
@@ -158,9 +159,11 @@ int main(int argc, char **argv)
     static monitor_t mon;
     monitor_init(&mon, drug, rate, volume);
 
-    pthread_t th_sensor, th_monitor;
+    mon.quiet = bench_runs > 0;
+    pthread_t th_sensor, th_monitor, th_logger;
     if (rt_thread_start(&th_sensor, PRIO_SENSOR, sensor_thread, &mon) != 0 ||
-        rt_thread_start(&th_monitor, PRIO_MONITOR, monitor_thread, &mon) != 0) {
+        rt_thread_start(&th_monitor, PRIO_MONITOR, monitor_thread, &mon) != 0 ||
+        rt_thread_start(&th_logger, PRIO_LOGGER, logger_thread, &mon) != 0) {
         perror("thread start");
         return 1;
     }
@@ -181,5 +184,6 @@ int main(int argc, char **argv)
 
     pthread_join(th_monitor, NULL);
     pthread_join(th_sensor, NULL);
+    pthread_join(th_logger, NULL);
     return 0;
 }

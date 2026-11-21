@@ -48,7 +48,8 @@ static int io_read(resmgr_context_t *ctp, io_read_t *msg, RESMGR_OCB_T *ocb)
     if (status != EOK) return status;
     if ((msg->i.xtype & _IO_XTYPE_MASK) != _IO_XTYPE_NONE) return ENOSYS;
 
-    off_t off = ocb->offset;
+    iofunc_ocb_t *o = (iofunc_ocb_t *)ocb;
+    off_t off = o->offset;
     size_t nbytes = 0;
     if (off < g_status_len) {
         nbytes = (size_t)(g_status_len - off);
@@ -58,7 +59,7 @@ static int io_read(resmgr_context_t *ctp, io_read_t *msg, RESMGR_OCB_T *ocb)
     if (nbytes == 0) return _RESMGR_NPARTS(0);
 
     SETIOV(ctp->iov, g_status + off, nbytes);
-    ocb->offset += nbytes;
+    o->offset += nbytes;
     return _RESMGR_NPARTS(1);
 }
 

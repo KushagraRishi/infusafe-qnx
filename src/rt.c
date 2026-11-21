@@ -57,7 +57,7 @@ void rt_tune_clock(uint64_t period_ns)
 {
     struct _clockperiod cp = { .nsec = (unsigned long)period_ns, .fract = 0 };
     if (ClockPeriod(CLOCK_REALTIME, &cp, NULL, 0) == -1) {
-        fprintf(stderr, "note: could not set clock period: %s\n", strerror(errno));
+        fprintf(stderr, "note: keeping the default system tick (%s)\n", strerror(errno));
     }
 }
 
