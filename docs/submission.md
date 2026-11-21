@@ -71,5 +71,5 @@ c, qnx, qnx-sdp-8.0, qemu, posix, docker, make
 
 ## Links
 
-- Code: GITHUB_URL
+- Code: https://github.com/KushagraRishi/infusafe-qnx
 - Demo video: YOUTUBE_URL
