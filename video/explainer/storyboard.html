@@ -1,0 +1,899 @@
+<title>InfuSafe Storyboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800;900&display=block">
+<style>
+/* Layout: one column of story beats, each a 16:9 still frame with its notes beside it. Single dark look, the explainer's own night sky. */
+:root {
+  --bg: #0b0c2e; --panel: #15163f; --line: #2a2b66; --fg: #eef0ff; --dim: #a9b0e0; --gold: #ffd23f; --rose: #ff5d8f; --cyan: #56e8ff;
+  --display: "Nunito", "Fredoka", system-ui, sans-serif; --body: "Nunito", system-ui, sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(30px, 5vw, 44px); margin: 0 0 6px; text-wrap: balance; }
+.lede { color: var(--dim); margin: 0 0 28px; max-width: 68ch; }
+.beats { display: grid; gap: 22px; }
+.beat { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+@media (max-width: 820px) { .beat { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; display: block; background: #090b2c; }
+.meta { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.num { font-family: var(--display); font-weight: 900; font-size: 28px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.name { font-weight: 900; font-size: 20px; }
+.time { color: var(--dim); font-variant-numeric: tabular-nums; font-weight: 700; }
+.row { display: grid; gap: 2px; }
+.k { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); font-weight: 800; }
+.v { margin: 0; }
+.vo { margin: 0; font-size: 17px; font-weight: 700; color: #fff; border-left: 3px solid var(--rose); padding-left: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: #23246a; border-radius: 999px; padding: 2px 10px; font-weight: 700; font-size: 14px; }
+.notes { margin-top: 36px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+.notes h2 { font-family: var(--display); font-weight: 900; font-size: 24px; margin: 0 0 10px; }
+.notes ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.notes a { color: var(--cyan); }
+</style>
+
+<div class="wrap">
+  <h1>InfuSafe explainer storyboard</h1>
+  <p class="lede">58 seconds, 9 beats. Each frame below is drawn with the final animation's own code. The pink lines are the voiceover script for you to read. Tell me what to change, or say go and I'll animate it.</p>
+  <div class="beats" id="beats"></div>
+  <div class="notes">
+    <h2>Facts and numbers I used</h2>
+    <ul>
+      <li><b>56,000 reports, 2005 to 2009.</b> From the FDA's <a href="https://www.fda.gov/medical-devices/infusion-pumps/white-paper-infusion-pump-improvement-initiative" target="_blank" rel="noopener">Infusion Pump Improvement Initiative white paper</a>. These are adverse event reports, not confirmed injuries.</li>
+      <li><b>"One program does it all"</b> is a simplified picture of a non-real-time design, not a claim about any brand. Many real pumps already have their own alarms and detectors. The voiceover says "if", on purpose.</li>
+      <li><b>10 ms and 3 ms</b> are our averages from QNX 8.0 in QEMU (9.7 ms for a blocked line, 3.1 ms for air), rounded.</li>
+      <li><b>100 of 100</b> is our bench: 5 faults, 20 runs each, none missed.</li>
+      <li>The drug, the 50 mL/h rate and the IV bag are a simulated demo, not a real patient setup.</li>
+    </ul>
+  </div>
+</div>
+
+<script>// H helper library (from the Flat-Vector Science reference, unchanged parts used here).
+(function () {
+  const H = (window.H = {});
+  H.rng = function (seed = 1) {
+    let a = typeof seed === 'string' ? hashStr(seed) : (seed >>> 0) || 1;
+    const r = function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    r.range = (lo, hi) => lo + r() * (hi - lo);
+    r.int = (lo, hi) => Math.floor(lo + r() * (hi - lo + 1));
+    r.pick = (arr) => arr[Math.floor(r() * arr.length)];
+    r.chance = (p) => r() < p;
+    r.gauss = () => { let u = 0, v = 0; while (!u) u = r(); while (!v) v = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+    return r;
+  };
+  function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  H.makeNoise = function (seed = 1) {
+    const r = H.rng(seed), p = new Uint8Array(512), perm = [...Array(256).keys()];
+    for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+    for (let i = 0; i < 512; i++) p[i] = perm[i & 255];
+    const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const g3 = (h, x, y, z) => { h &= 15; const u = h < 8 ? x : y, v = h < 4 ? y : h === 12 || h === 14 ? x : z; return ((h & 1) ? -u : u) + ((h & 2) ? -v : v); };
+    function n3(x, y, z) {
+      const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+      x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+      const u = fade(x), v = fade(y), w = fade(z);
+      const A = p[X] + Y, AA = p[A] + Z, AB = p[A + 1] + Z, B = p[X + 1] + Y, BA = p[B] + Z, BB = p[B + 1] + Z;
+      return lerp(lerp(lerp(g3(p[AA], x, y, z), g3(p[BA], x - 1, y, z), u), lerp(g3(p[AB], x, y - 1, z), g3(p[BB], x - 1, y - 1, z), u), v),
+        lerp(lerp(g3(p[AA + 1], x, y, z - 1), g3(p[BA + 1], x - 1, y, z - 1), u), lerp(g3(p[AB + 1], x, y - 1, z - 1), g3(p[BB + 1], x - 1, y - 1, z - 1), u), v), w);
+    }
+    const n2 = (x, y) => n3(x, y, 0.5);
+    const fbm3 = (x, y, z, oct = 4) => { let s = 0, a = 0.5, f = 1, norm = 0; for (let i = 0; i < oct; i++) { s += a * n3(x * f, y * f, z * f); norm += a; a *= 0.5; f *= 2; } return s / norm; };
+    const fbm2 = (x, y, oct = 4) => fbm3(x, y, 0.5, oct);
+    return { n2, n3, fbm2, fbm3 };
+  };
+  H.lerp = (a, b, t) => a + (b - a) * t;
+  H.clamp = (v, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, v));
+  H.map = (v, a, b, c, d) => c + ((v - a) / (b - a)) * (d - c);
+  H.smooth = (e0, e1, x) => { const t = H.clamp((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+  H.ease = {
+    inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    out: (t) => 1 - Math.pow(1 - t, 3),
+    in: (t) => t * t * t,
+    back: (t) => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+  };
+  H.hex = (h) => { h = h.replace('#', ''); if (h.length === 3) h = h.split('').map((c) => c + c).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  H.rgba = (hexOrArr, a = 1) => { const [r, g, b] = Array.isArray(hexOrArr) ? hexOrArr : H.hex(hexOrArr); return `rgba(${r | 0},${g | 0},${b | 0},${a})`; };
+  H.mix = (c1, c2, t) => { const a = Array.isArray(c1) ? c1 : H.hex(c1), b = Array.isArray(c2) ? c2 : H.hex(c2); return [0, 1, 2].map((i) => a[i] + (b[i] - a[i]) * t); };
+  H.layer = (W, H_) => { const c = document.createElement('canvas'); c.width = W; c.height = H_; return c; };
+  H.W = 1280; H.H = 720;
+})();
+</script>
+<script>// InfuSafe explainer in the Flat-Vector Science style. Every frame is a pure function of t.
+(function () {
+  const TAU = Math.PI * 2;
+  const cl = H.clamp, lerp = H.lerp;
+  const seg = (t, a, b) => cl((t - a) / (b - a));
+  const eo = H.ease.out, eio = H.ease.inOut;
+  const back = (u, s = 1.5) => { if (u <= 0) return 0; if (u >= 1) return 1; return 1 + (s + 1) * Math.pow(u - 1, 3) + s * Math.pow(u - 1, 2); };
+  const FONT = '"Nunito", "Fredoka", sans-serif';
+  const F = (w, px) => `${w} ${px}px ${FONT}`;
+
+  const C = {
+    sky0: '#090b2c', sky1: '#18134f', sky2: '#3a1a6c', ink: '#141846',
+    teal: ['#a4fbef', '#3ccbdc', '#1d64b0'],
+    orange: ['#ffcc7a', '#ff8d3f', '#d24a2a'],
+    tan: ['#ffe9be', '#ecb676', '#b4723c'],
+    gold: ['#fff4b8', '#ffd23f', '#c47a12'],
+    rose: ['#ffc1d8', '#ff5d8f', '#9a2775'],
+    yellow: '#ffd23f', pink: '#ff5d8f', red: '#ff3b5c', green: '#38e08e', cyan: '#56e8ff', violet: '#8b5cff',
+  };
+
+  // ---------------- timeline (shared by picture and sound) ----------------
+  const TL = {
+    title: 0.2, shrink: [2.2, 2.9],
+    bagIn: [2.5, 3.0], pumpIn: [2.7, 3.2], patIn: [2.9, 3.4],
+    lbl: [4.0, 5.2], flow: [5.2, 6.8],
+    kink: 10.6, air: 12.8, typo: 15.0,
+    pull: [18.0, 19.2], count: [18.9, 21.6],
+    dive: [23.4, 24.6],
+    chipIn: 24.7, queue: [25.4, 29.6], waitT: 28.6,
+    sweep: [31.1, 32.1],
+    guardIn: [32.3, 33.1], qnx: 33.9, link: [34.5, 35.3], tick: [35.6, 38.4],
+    lanes: [39.8, 40.6], race: [41.0, 44.4],
+    back: [45.2, 46.0], kink2: 46.7, stop1: 47.0, air2: 49.8, stop2: 50.0,
+    take: [52.6, 53.6], line1: 54.0, line2: 55.0, D: 58,
+  };
+  window.DURATION = TL.D;
+  window.TL = TL;
+
+  // ---------------- reference helpers ----------------
+  function rr(x, X, Y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r);
+    x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath();
+  }
+  function glow(x, cx, cy, r, col, a) {
+    if (a <= 0 || r <= 0) return;
+    const g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, H.rgba(col, a)); g.addColorStop(0.35, H.rgba(col, a * 0.4)); g.addColorStop(1, H.rgba(col, 0));
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill();
+  }
+  function spark(x, cx, cy, r, col, a) {
+    if (a <= 0 || r <= 0) return;
+    x.save(); x.globalAlpha *= a; x.fillStyle = col; x.beginPath();
+    x.moveTo(cx, cy - r); x.quadraticCurveTo(cx, cy, cx + r, cy); x.quadraticCurveTo(cx, cy, cx, cy + r);
+    x.quadraticCurveTo(cx, cy, cx - r, cy); x.quadraticCurveTo(cx, cy, cx, cy - r); x.fill(); x.restore();
+  }
+  function crescent(x, cx, cy, r, dx, dy, fill) {
+    x.save(); x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.clip();
+    x.beginPath(); x.rect(cx - r - 2, cy - r - 2, 2 * r + 4, 2 * r + 4); x.arc(cx + dx, cy + dy, r * 1.02, 0, TAU);
+    x.fillStyle = fill; x.fill('evenodd'); x.restore();
+  }
+  function ball(x, cx, cy, r, col, o = {}) {
+    if (r <= 0.3) return;
+    const la = o.la == null ? -2.25 : o.la, lx = Math.cos(la), ly = Math.sin(la);
+    const g = x.createLinearGradient(cx + lx * r, cy + ly * r, cx - lx * r, cy - ly * r);
+    g.addColorStop(0, col[0]); g.addColorStop(0.45, col[1]); g.addColorStop(1, H.rgba(H.mix(col[1], col[2], 0.6)));
+    x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill();
+    if (o.inner) { x.save(); x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.clip(); o.inner(); x.restore(); }
+    const sh = o.sh == null ? 0.3 : o.sh;
+    crescent(x, cx, cy, r, lx * r * sh, ly * r * sh, H.rgba(col[2], o.sha == null ? 0.5 : o.sha));
+    crescent(x, cx, cy, r, lx * r * sh * 2.2, ly * r * sh * 2.2, H.rgba(col[2], (o.sha == null ? 0.5 : o.sha) * 0.45));
+    crescent(x, cx, cy, r, -lx * r * 0.075, -ly * r * 0.075, H.rgba(o.rim || '#ffffff', o.rima == null ? 0.42 : o.rima));
+  }
+  const bez = (P, u) => { const v = 1 - u; return [v * v * v * P[0][0] + 3 * v * v * u * P[1][0] + 3 * v * u * u * P[2][0] + u * u * u * P[3][0], v * v * v * P[0][1] + 3 * v * v * u * P[1][1] + 3 * v * u * u * P[2][1] + u * u * u * P[3][1]]; };
+  function arrow(x, P, prog, col, lw, o = {}) {
+    if (prog <= 0) return;
+    const n = 48, a = o.a == null ? 1 : o.a;
+    x.save(); x.globalAlpha *= a; x.strokeStyle = col; x.fillStyle = col; x.lineWidth = lw; x.lineCap = 'round'; x.lineJoin = 'round';
+    if (o.dots) x.setLineDash([0.01, lw * 1.9]);
+    x.beginPath(); const p0 = bez(P, 0); x.moveTo(p0[0], p0[1]);
+    for (let i = 1; i <= n; i++) { const p = bez(P, (prog * i) / n); x.lineTo(p[0], p[1]); }
+    x.stroke(); x.setLineDash([]);
+    if (o.head !== false && prog > 0.08) {
+      const e = bez(P, prog), e0 = bez(P, prog - 0.02), ang = Math.atan2(e[1] - e0[1], e[0] - e0[0]), hs = lw * 1.5 * cl(prog * 5);
+      x.translate(e[0], e[1]); x.rotate(ang); x.beginPath(); x.moveTo(hs * 1.1, 0); x.lineTo(-hs * 0.8, hs); x.lineTo(-hs * 0.8, -hs); x.closePath();
+      x.lineWidth = lw * 0.7; x.fill(); x.stroke();
+    }
+    x.restore();
+  }
+  function text(x, s, cx, cy, px, col, o = {}) {
+    x.save(); x.font = F(o.w || 900, px); x.textAlign = o.align || 'center'; x.textBaseline = 'middle';
+    x.globalAlpha *= o.a == null ? 1 : o.a;
+    x.fillStyle = o.shadow || 'rgba(10,8,46,0.55)'; x.fillText(s, cx + px * 0.03, cy + px * 0.07);
+    x.fillStyle = col; x.fillText(s, cx, cy); x.restore();
+  }
+  function pill(x, cx, cy, s, px, o = {}) {
+    const sc = o.s == null ? 1 : o.s, a = o.a == null ? 1 : o.a;
+    if (sc <= 0.01 || a <= 0.01) return;
+    x.save(); x.font = F(o.w || 900, px);
+    const tw = x.measureText(s).width, w = tw + px * 1.15, h = px * 1.6;
+    x.translate(cx, cy); x.scale(sc, sc); x.globalAlpha *= a;
+    x.fillStyle = 'rgba(10,8,46,0.4)'; rr(x, -w / 2, -h / 2 + px * 0.2, w, h, h / 2); x.fill();
+    x.fillStyle = o.bg || '#ffffff';
+    if (o.ptr) { x.beginPath(); x.moveTo(-px * 0.35, h / 2 - 2); x.lineTo(0, h / 2 + px * 0.45); x.lineTo(px * 0.35, h / 2 - 2); x.fill(); }
+    rr(x, -w / 2, -h / 2, w, h, h / 2); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.35)'; rr(x, -w / 2 + h * 0.25, -h / 2 + h * 0.12, w - h * 0.5, h * 0.16, h * 0.08); x.fill();
+    x.fillStyle = o.fg || C.ink; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(s, 0, px * 0.06);
+    x.restore();
+    return w;
+  }
+  let STARS = null;
+  function stars() {
+    if (STARS) return STARS;
+    const r = H.rng(77), a = [], sp = [];
+    for (let i = 0; i < 620; i++) a.push({ x: r.range(0, 1680), y: r.range(0, 1120), d: r.pick([0.15, 0.3, 0.3, 0.55, 1]), s: r.range(0.6, 2.0), ph: r.range(0, TAU), sp: r.range(0.8, 2.6), c: r.pick(['#ffffff', '#cfe4ff', '#ffe9c7', '#dccbff']) });
+    for (let i = 0; i < 16; i++) sp.push({ x: r.range(0, 1680), y: r.range(0, 1120), d: r.range(0.3, 0.9), s: r.range(6, 13), ph: r.range(0, TAU) });
+    STARS = { a, sp }; return STARS;
+  }
+  function sky(x, W, H_, t, cam = {}) {
+    const px = cam.x || 0, py = cam.y || 0, lz = Math.log(cam.z || 1);
+    const g = x.createLinearGradient(0, 0, W * 0.3, H_);
+    g.addColorStop(0, C.sky0); g.addColorStop(0.5, C.sky1); g.addColorStop(1, C.sky2);
+    x.fillStyle = g; x.fillRect(0, 0, W, H_);
+    glow(x, W * 0.86, H_ * 0.12, 700, cam.tint || '#7b34c6', 0.34);
+    glow(x, W * 0.05, H_ * 1.0, 620, '#2448b4', 0.4);
+    glow(x, W * 0.45, H_ * 0.6, 520, '#4a2a9c', 0.16);
+    const S = stars();
+    const place = (s) => {
+      const k = Math.exp(lz * s.d * 0.6);
+      let sx = (((s.x - px * s.d) % 1680) + 1680) % 1680 - 200, sy = (((s.y - py * s.d) % 1120) + 1120) % 1120 - 200;
+      return [(sx - 640) * k + 640, (sy - 360) * k + 360];
+    };
+    for (const s of S.a) {
+      const [sx, sy] = place(s);
+      if (sx < -4 || sx > W + 4 || sy < -4 || sy > H_ + 4) continue;
+      x.globalAlpha = (0.55 + 0.45 * Math.sin(t * s.sp + s.ph)) * (0.45 + s.d * 0.55);
+      x.fillStyle = s.c; x.beginPath(); x.arc(sx, sy, s.s * (0.7 + 0.35 * s.d), 0, TAU); x.fill();
+    }
+    x.globalAlpha = 1;
+    for (const s of S.sp) {
+      const [sx, sy] = place(s); const tw = 0.6 + 0.4 * Math.sin(t * 1.7 + s.ph);
+      glow(x, sx, sy, s.s * 2.2, '#bfa8ff', 0.25 * tw);
+      spark(x, sx, sy, s.s * tw, '#ffffff', 0.9);
+    }
+  }
+  function ring(x, cx, cy, R, half, a = 1) {
+    if (a <= 0) return;
+    x.save(); x.translate(cx, cy); x.rotate(R.tilt); x.globalAlpha *= a;
+    const m = Math.max(...R.bands.map((b) => b[1])) * 1.05;
+    x.beginPath(); if (half === 'back') x.rect(-R.rx * m, -R.ry * m, R.rx * m * 2, R.ry * m); else x.rect(-R.rx * m, 0, R.rx * m * 2, R.ry * m); x.clip();
+    for (const [f0, f1, col, al] of R.bands) {
+      x.beginPath(); x.ellipse(0, 0, R.rx * f1, R.ry * f1, 0, 0, TAU); x.ellipse(0, 0, R.rx * f0, R.ry * f0, 0, 0, TAU);
+      x.fillStyle = H.rgba(col, (al == null ? 1 : al) * (half === 'back' ? 0.75 : 1)); x.fill('evenodd');
+    }
+    x.restore();
+  }
+  function bands(x, r, B, tilt) {
+    x.save(); x.rotate(tilt || 0);
+    for (const [v0, v1, col, a] of B) {
+      x.beginPath();
+      for (let i = 0; i <= 20; i++) { const u = (i / 20) * 2 - 1; x.lineTo(u * r * 1.1, (v0 + 0.13 * (1 - u * u)) * r); }
+      for (let i = 20; i >= 0; i--) { const u = (i / 20) * 2 - 1; x.lineTo(u * r * 1.1, (v1 + 0.13 * (1 - u * u)) * r); }
+      x.fillStyle = H.rgba(col, a == null ? 1 : a); x.fill();
+    }
+    x.restore();
+  }
+  const PL = {
+    magenta: { c: ['#ffa0c4', '#de4b93', '#4e1670'], glow: '#ff5fa8', tilt: -0.18, atmo: [255, 214, 234],
+      bands: [[-0.62, -0.48, '#ffc1d8', 0.55], [-0.2, -0.02, '#b5307e', 0.6], [0.06, 0.14, '#ffd0e2', 0.4], [0.36, 0.58, '#9a2775', 0.55]],
+      ring: { rx: 1.75, ry: 0.5, tilt: -0.2, bands: [[1.18, 1.32, '#ffd27a', 0.95], [1.34, 1.5, '#ff9f5a', 0.9], [1.53, 1.6, '#ffe7b0', 0.8]] } },
+    coral: { c: ['#ffd29a', '#ff7a4a', '#7a1f4f'], glow: '#ff8a50', tilt: 0.1, atmo: [255, 226, 190],
+      bands: [[-0.7, -0.5, '#ffe2b8', 0.5], [-0.32, -0.12, '#e8553a', 0.6], [0.05, 0.22, '#ffb27a', 0.5], [0.4, 0.62, '#c43c46', 0.55]] },
+    teal: { c: ['#9ff3ff', '#3a9be0', '#1d2f86'], glow: '#4fc9ff', tilt: -0.12, atmo: [190, 245, 255],
+      bands: [[-0.5, -0.36, '#c6f8ff', 0.5], [-0.05, 0.1, '#2f74c9', 0.55], [0.32, 0.5, '#7fdcff', 0.4]] },
+    moon: { c: ['#e8e6ff', '#a7a2d8', '#4a3f8c'], craters: true },
+  };
+  function planet(x, cx, cy, r, pal, o = {}) {
+    if (r <= 0.5) return;
+    if (pal.glow) glow(x, cx, cy, r * 1.7, pal.glow, o.glowA == null ? 0.32 : o.glowA);
+    const R = pal.ring && { rx: pal.ring.rx * r, ry: pal.ring.ry * r, tilt: pal.ring.tilt, bands: pal.ring.bands };
+    if (R) ring(x, cx, cy, R, 'back', 1);
+    ball(x, cx, cy, r, pal.c, {
+      sh: 0.34, sha: 0.55, rima: 0.35,
+      inner: () => {
+        x.save(); x.translate(cx, cy);
+        if (pal.bands) bands(x, r, pal.bands, pal.tilt);
+        if (pal.craters) { const q = H.rng(5); for (let i = 0; i < 5; i++) { const a = q.range(0, TAU), d = q.range(0.1, 0.65) * r, cr = q.range(0.1, 0.2) * r, qx = Math.cos(a) * d, qy = Math.sin(a) * d; x.fillStyle = 'rgba(80,66,150,0.38)'; x.beginPath(); x.arc(qx, qy, cr, 0, TAU); x.fill(); crescent(x, qx, qy, cr, -cr * 0.3, -cr * 0.3, 'rgba(255,255,255,0.3)'); } }
+        x.restore();
+      },
+    });
+    const atA = o.atmo == null ? 0.7 : o.atmo;
+    if (pal.atmo && atA > 0) {
+      x.save(); x.lineCap = 'round'; const ga0 = x.globalAlpha;
+      const la = -2.25, ag = x.createLinearGradient(cx + Math.cos(la) * r, cy + Math.sin(la) * r, cx - Math.cos(la) * r, cy - Math.sin(la) * r);
+      ag.addColorStop(0, H.rgba(pal.atmo, 1)); ag.addColorStop(0.55, H.rgba(pal.atmo, 0.5)); ag.addColorStop(1, H.rgba(pal.atmo, 0.08));
+      x.strokeStyle = ag;
+      for (const [lw, a] of [[r * 0.05, 0.08], [r * 0.028, 0.16], [r * 0.014, 0.3], [Math.max(2, r * 0.006), 0.6]]) { x.globalAlpha = ga0 * a * atA; x.lineWidth = lw; x.beginPath(); x.arc(cx, cy, r + lw * 0.15, 0, TAU); x.stroke(); }
+      x.restore();
+    }
+    if (R) ring(x, cx, cy, R, 'front', 1);
+  }
+  let GRAIN = null;
+  function grainTex() {
+    if (GRAIN) return GRAIN;
+    const S = 256, tile = H.layer(S, S), tc = tile.getContext('2d'), img = tc.createImageData(S, S), d = img.data, r = H.rng(4242);
+    for (let i = 0; i < d.length; i += 4) { const v = 128 + (r() + r() + r() - 1.5) * 92; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+    tc.putImageData(img, 0, 0);
+    const MW = 320, MH = 180, mot = H.layer(MW, MH), mc = mot.getContext('2d'), mi = mc.createImageData(MW, MH), md = mi.data, nz = H.makeNoise(88);
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) { const v = 128 + nz.fbm2(x * 0.035, y * 0.035, 4) * 70 + nz.n2(x * 0.22, y * 0.22) * 14, k = (y * MW + x) * 4; md[k] = md[k + 1] = md[k + 2] = v; md[k + 3] = 255; }
+    mc.putImageData(mi, 0, 0);
+    GRAIN = { tile, mot };
+    return GRAIN;
+  }
+  function finish(x, W, H_, t) {
+    const G = grainTex(), f = Math.floor(t * 24);
+    x.save(); x.globalCompositeOperation = 'overlay';
+    x.globalAlpha = 0.12; x.imageSmoothingEnabled = true; x.drawImage(G.mot, 0, 0, W, H_);
+    const pat = x.createPattern(G.tile, 'repeat'); pat.setTransform(new DOMMatrix().translateSelf((f * 73) % 256, (f * 151) % 256));
+    x.globalAlpha = 0.09; x.fillStyle = pat; x.fillRect(0, 0, W, H_);
+    x.restore();
+  }
+  function eye(x, ex, ey, er, o) {
+    const look = o.look || [0, 0];
+    if ((o.happy || 0) > 0.5) {
+      x.save(); x.strokeStyle = '#ffffff'; x.lineWidth = er * 0.42; x.lineCap = 'round';
+      x.beginPath(); x.arc(ex, ey + er * 0.35, er * 0.62, Math.PI * 1.15, Math.PI * 1.85); x.stroke(); x.restore(); return;
+    }
+    const bl = 1 - 0.92 * (o.blink || 0);
+    x.save(); x.translate(ex, ey); x.scale(1, bl);
+    x.fillStyle = '#ffffff'; x.beginPath(); x.arc(0, 0, er, 0, TAU); x.fill();
+    const pr = er * (o.worry ? 0.5 : 0.56);
+    const px = look[0] * er * 0.36, py = look[1] * er * 0.36;
+    x.fillStyle = '#141638'; x.beginPath(); x.arc(px, py, pr, 0, TAU); x.fill();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.arc(px - pr * 0.35, py - pr * 0.4, pr * 0.32, 0, TAU); x.fill();
+    x.beginPath(); x.arc(px + pr * 0.35, py + pr * 0.35, pr * 0.13, 0, TAU); x.fill();
+    x.restore();
+  }
+  const blinkAt = (t, ph) => { const u = (t + ph) % 3.3; return u < 0.14 ? Math.sin((u / 0.14) * Math.PI) : 0; };
+  function badge(x, cx, cy, r, ok, s) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    glow(x, 0, 0, r * 2.4, ok ? C.green : C.red, 0.45);
+    ball(x, 0, 0, r, ok ? ['#9fffc8', C.green, '#178a5a'] : ['#ff9aa8', C.red, '#9c1638'], { sha: 0.4 });
+    x.strokeStyle = '#ffffff'; x.lineWidth = r * 0.26; x.lineCap = 'round'; x.lineJoin = 'round'; x.beginPath();
+    if (ok) { x.moveTo(-r * 0.42, 0); x.lineTo(-r * 0.1, r * 0.32); x.lineTo(r * 0.45, -r * 0.3); }
+    else { x.moveTo(-r * 0.34, -r * 0.34); x.lineTo(r * 0.34, r * 0.34); x.moveTo(r * 0.34, -r * 0.34); x.lineTo(-r * 0.34, r * 0.34); }
+    x.stroke(); x.restore();
+  }
+  function flare(x, cx, cy, k, t) {
+    if (k <= 0) return;
+    glow(x, cx, cy, 420 * (0.6 + 0.4 * k), '#ffcf5a', 0.55 * k);
+    glow(x, cx, cy, 160, '#fff6d0', 0.6 * k);
+    x.save(); x.translate(cx, cy); x.rotate(t * 0.25); x.globalAlpha *= 0.32 * k; x.fillStyle = '#ffe28a';
+    for (let i = 0; i < 12; i++) { x.rotate(TAU / 12); x.beginPath(); x.moveTo(0, -12); x.lineTo(330 + 60 * (i % 2), 0); x.lineTo(0, 12); x.fill(); }
+    x.restore();
+  }
+  function burst(x, cx, cy, age, seed, spread) {
+    if (age < 0 || age > 1.4) return;
+    const r = H.rng(seed);
+    for (let i = 0; i < 18; i++) {
+      const a = r.range(0, TAU), d = (spread || 300) * r.range(0.45, 1) * eo(cl(age / 0.9)), sz = r.range(7, 16) * (1 - cl(age / 1.4));
+      spark(x, cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, sz, r.pick(['#ffffff', '#ffe28a', '#9ff7ff', '#ffb0d0']), 1);
+    }
+  }
+  function header(x, a) { pill(x, 132, 44, 'InfuSafe', 30, { a, bg: 'rgba(255,255,255,0.95)' }); }
+
+  // ---------------- new subjects for this story ----------------
+  // a soft rounded rectangle object with the style's flat stepped shading
+  function slab(x, X, Y, w, h, r, col, o = {}) {
+    const g = x.createLinearGradient(X, Y, X + w * 0.6, Y + h);
+    g.addColorStop(0, col[0]); g.addColorStop(0.45, col[1]); g.addColorStop(1, H.rgba(H.mix(col[1], col[2], 0.6)));
+    x.fillStyle = 'rgba(10,8,46,0.35)'; rr(x, X + 6, Y + 12, w, h, r); x.fill();
+    x.fillStyle = g; rr(x, X, Y, w, h, r); x.fill();
+    x.save(); rr(x, X, Y, w, h, r); x.clip();
+    x.fillStyle = H.rgba(col[2], 0.32); rr(x, X + w * 0.12, Y + h * 0.18, w, h, r); x.fill();
+    x.fillStyle = H.rgba(col[2], 0.18); rr(x, X + w * 0.3, Y + h * 0.42, w, h, r); x.fill();
+    x.restore();
+    x.save(); rr(x, X, Y, w, h, r); x.clip();
+    x.strokeStyle = 'rgba(255,255,255,0.45)'; x.lineWidth = Math.max(3, w * 0.025); rr(x, X + 2, Y + 2, w, h, r); x.stroke();
+    x.restore();
+  }
+
+  // IV bag hanging on a hook, fluid inside, drip chamber with falling drops
+  function ivBag(x, cx, cy, s, t, o = {}) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    // hook
+    x.strokeStyle = '#c9d4ff'; x.lineWidth = 8; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(0, -150); x.lineTo(0, -122); x.stroke();
+    x.beginPath(); x.arc(0, -112, 10, 0, TAU); x.stroke();
+    // pouch
+    const pouch = () => { x.beginPath(); x.moveTo(-58, -100); x.quadraticCurveTo(0, -112, 58, -100); x.quadraticCurveTo(78, -20, 66, 60); x.quadraticCurveTo(0, 92, -66, 60); x.quadraticCurveTo(-78, -20, -58, -100); x.closePath(); };
+    glow(x, 0, -10, 150, '#9ff7ff', 0.18);
+    x.fillStyle = 'rgba(10,8,46,0.35)'; x.save(); x.translate(6, 10); pouch(); x.fill(); x.restore();
+    const g = x.createLinearGradient(-70, -100, 60, 80); g.addColorStop(0, 'rgba(235,250,255,0.95)'); g.addColorStop(1, 'rgba(160,200,255,0.75)');
+    x.fillStyle = g; pouch(); x.fill();
+    x.save(); pouch(); x.clip();
+    const lvl = -30 + (o.drain || 0) * 30, fg = x.createLinearGradient(0, lvl, 0, 90);
+    fg.addColorStop(0, '#ffd27a'); fg.addColorStop(1, '#ff8d3f');
+    x.fillStyle = fg; x.beginPath(); x.moveTo(-90, lvl); for (let i = 0; i <= 12; i++) x.lineTo(-90 + i * 15, lvl + Math.sin(t * 2.2 + i * 0.8) * 3); x.lineTo(90, 100); x.lineTo(-90, 100); x.fill();
+    x.fillStyle = 'rgba(210,74,42,0.28)'; x.fillRect(10, lvl, 90, 120);
+    // label
+    x.fillStyle = 'rgba(255,255,255,0.92)'; rr(x, -38, -78, 76, 40, 8); x.fill();
+    x.fillStyle = '#ff5d8f'; rr(x, -30, -70, 40, 7, 3); x.fill();
+    x.fillStyle = '#9aa6d8'; rr(x, -30, -58, 56, 5, 2); x.fill(); rr(x, -30, -49, 44, 5, 2); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.5)'; rr(x, -60, -88, 10, 120, 5); x.fill();
+    x.restore();
+    // neck and drip chamber
+    x.fillStyle = '#d7e3ff'; rr(x, -9, 72, 18, 22, 5); x.fill();
+    x.fillStyle = 'rgba(210,235,255,0.85)'; rr(x, -20, 92, 40, 58, 14); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.6)'; rr(x, -14, 97, 6, 46, 3); x.fill();
+    if (o.drip !== false) {
+      const u = (t * 1.6) % 1;
+      x.fillStyle = '#ff9d4f'; x.beginPath(); x.ellipse(0, 100 + u * 36, 5, 7, 0, 0, TAU); x.fill();
+    }
+    x.fillStyle = '#ffb25a'; rr(x, -16, 134, 32, 12, 6); x.fill();
+    x.restore();
+  }
+
+  // the infusion pump: a rounded box with a screen, keys and a roller window
+  function pump(x, cx, cy, s, t, o = {}) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    const red = o.red || 0;
+    if (red > 0) glow(x, 0, 0, 260, C.red, 0.45 * red);
+    // pole clamp
+    x.fillStyle = '#5a6ab8'; rr(x, -150, -18, 40, 36, 10); x.fill();
+    slab(x, -125, -100, 250, 200, 34, ['#bdf8ff', '#46c2e0', '#1d4f9c']);
+    // screen
+    const sg = x.createLinearGradient(-95, -75, 95, 5); sg.addColorStop(0, '#26338e'); sg.addColorStop(1, '#0d1246');
+    x.fillStyle = '#0a0f3c'; rr(x, -98, -76, 196, 88, 18); x.fill();
+    x.fillStyle = sg; rr(x, -95, -79, 190, 84, 16); x.fill();
+    x.fillStyle = 'rgba(160,240,255,0.18)'; rr(x, -80, -72, 90, 7, 3); x.fill();
+    const scr = o.screen || '50 mL/h';
+    x.font = F(900, o.screenPx || 40); x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.fillStyle = red > 0.5 ? '#ff8da0' : '#9ff7ff'; x.fillText(scr, 0, -36);
+    // keys
+    ['#ffd23f', '#38e08e', '#ff5d8f'].forEach((c, i) => ball(x, -62 + i * 44, 52, 15, [H.rgba(H.mix(c, '#ffffff', 0.5)), c, H.rgba(H.mix(c, '#000000', 0.45))], { sha: 0.35 }));
+    // roller window (spins while running)
+    x.fillStyle = '#0d1246'; rr(x, 62, 28, 46, 46, 14); x.fill();
+    const run = o.run == null ? 1 : o.run;
+    x.save(); x.translate(85, 51); x.rotate(t * 5 * run);
+    x.fillStyle = '#9ff7ff'; for (let i = 0; i < 3; i++) { x.rotate(TAU / 3); x.beginPath(); x.arc(0, -11, 6, 0, TAU); x.fill(); }
+    x.restore();
+    x.restore();
+  }
+
+  // the patient: a round big-eyed character with a soft beanie, under a blanket
+  function patient(x, cx, cy, r, t, o = {}) {
+    if (r <= 1) return;
+    x.save(); x.translate(cx, cy);
+    // blanket / body
+    const bg = x.createLinearGradient(-r * 1.4, r * 0.5, r * 1.4, r * 1.6);
+    bg.addColorStop(0, '#8f7bff'); bg.addColorStop(1, '#4a2f9c');
+    x.fillStyle = 'rgba(10,8,46,0.35)'; rr(x, -r * 1.35 + 6, r * 0.55 + 10, r * 2.7, r * 1.1, r * 0.5); x.fill();
+    x.fillStyle = bg; rr(x, -r * 1.35, r * 0.55, r * 2.7, r * 1.1, r * 0.5); x.fill();
+    x.fillStyle = 'rgba(255,255,255,0.22)'; rr(x, -r * 1.1, r * 0.66, r * 1.6, r * 0.1, r * 0.05); x.fill();
+    // arm where the line goes in
+    ball(x, -r * 1.05, r * 0.6, r * 0.3, C.tan, { sha: 0.4 });
+    x.fillStyle = 'rgba(255,255,255,0.9)'; rr(x, -r * 1.22, r * 0.5, r * 0.3, r * 0.16, r * 0.05); x.fill();
+    // head
+    ball(x, 0, 0, r, C.tan, { sha: 0.42, inner: () => {
+      x.fillStyle = 'rgba(255,150,150,0.35)'; x.beginPath(); x.arc(-r * 0.55, r * 0.28, r * 0.17, 0, TAU); x.arc(r * 0.55, r * 0.28, r * 0.17, 0, TAU); x.fill();
+    } });
+    // beanie
+    x.save(); x.beginPath(); x.arc(0, 0, r * 1.02, Math.PI * 1.02, Math.PI * 1.98); x.closePath();
+    const hg = x.createLinearGradient(-r, -r, r, 0); hg.addColorStop(0, '#ffc1d8'); hg.addColorStop(1, '#de4b93');
+    x.fillStyle = hg; x.fill(); x.restore();
+    x.fillStyle = '#ff8fb8'; rr(x, -r * 1.02, -r * 0.2, r * 2.04, r * 0.24, r * 0.12); x.fill();
+    ball(x, 0, -r * 1.05, r * 0.18, C.rose, { sha: 0.3 });
+    const worry = o.worry || 0, happy = o.happy || 0;
+    for (const sd of [-1, 1]) eye(x, sd * r * 0.34, r * 0.12, r * 0.2, { look: o.look || [-0.4, 0], blink: blinkAt(t, 0.8), happy, worry: worry > 0.5 });
+    x.strokeStyle = '#7a3a2e'; x.lineWidth = r * 0.06; x.lineCap = 'round'; x.beginPath();
+    const my = r * 0.5;
+    if (worry > 0.5) { x.moveTo(-r * 0.12, my + r * 0.04); x.quadraticCurveTo(0, my - r * 0.06, r * 0.12, my + r * 0.04); }
+    else x.arc(0, my - r * 0.08, r * 0.12, 0.2 * Math.PI, 0.8 * Math.PI);
+    x.stroke();
+    x.restore();
+  }
+
+  // the tube from bag to pump to patient; kink at fraction ku bends it into a V
+  function tubePath(P, n, kink, ku) {
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const u = i / n; let [px, py] = bez(P, u);
+      if (kink > 0) {
+        const d = Math.abs(u - ku), w = 0.06;
+        if (d < w) { const e = bez(P, Math.min(1, u + 0.01)), b0 = bez(P, Math.max(0, u - 0.01)); const ang = Math.atan2(e[1] - b0[1], e[0] - b0[0]); const amt = kink * 46 * (1 - d / w); px += Math.cos(ang + Math.PI / 2) * amt; py += Math.sin(ang + Math.PI / 2) * amt; }
+      }
+      pts.push([px, py]);
+    }
+    return pts;
+  }
+  function tube(x, P, t, o = {}) {
+    const prog = o.prog == null ? 1 : o.prog;
+    const pts = tubePath(P, 80, o.kink || 0, o.ku || 0.5), m = Math.max(2, Math.round(pts.length * prog));
+    if (prog <= 0) return pts;
+    const line = (lw, col) => { x.strokeStyle = col; x.lineWidth = lw; x.beginPath(); x.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < m; i++) x.lineTo(pts[i][0], pts[i][1]); x.stroke(); };
+    x.save(); x.lineCap = 'round'; x.lineJoin = 'round';
+    x.save(); x.translate(3, 7); line(16, 'rgba(10,8,46,0.35)'); x.restore();
+    line(16, 'rgba(205,232,255,0.92)'); line(8, 'rgba(255,190,110,0.9)'); line(3, 'rgba(255,255,255,0.65)');
+    // flowing dots
+    if (o.flow > 0) for (let i = 0; i < 7; i++) { const u = ((t * 0.28 * o.flow + i / 7) % 1) * prog; const p = pts[Math.floor(u * (pts.length - 1))]; glow(x, p[0], p[1], 16, '#ffb25a', 0.55); x.fillStyle = '#fff0c8'; x.beginPath(); x.arc(p[0], p[1], 4.5, 0, TAU); x.fill(); }
+    if ((o.kink || 0) > 0.05) { const p = pts[Math.round((o.ku || 0.5) * 80)]; glow(x, p[0], p[1], 90, C.red, 0.6 * o.kink); }
+    x.restore();
+    return pts;
+  }
+  // glossy air bubble
+  function bubbleDot(x, cx, cy, r, a = 1) {
+    if (r <= 0.5 || a <= 0) return;
+    x.save(); x.globalAlpha *= a;
+    glow(x, cx, cy, r * 3, '#c9f6ff', 0.5);
+    x.fillStyle = 'rgba(220,250,255,0.55)'; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.95)'; x.lineWidth = r * 0.16; x.beginPath(); x.arc(cx, cy, r * 0.92, 0, TAU); x.stroke();
+    x.fillStyle = '#ffffff'; x.beginPath(); x.arc(cx - r * 0.35, cy - r * 0.38, r * 0.22, 0, TAU); x.fill();
+    x.restore();
+  }
+
+  // the guardian: InfuSafe as a round gold character with a visor and a shield badge
+  function guardian(x, cx, cy, R, t, o = {}) {
+    if (R < 1) return;
+    const happy = o.happy || 0, alert = o.alert || 0;
+    glow(x, cx, cy, R * 2.2, alert > 0 ? '#ff5d8f' : '#ffd23f', 0.28 + 0.25 * alert);
+    // antenna with a blinking light (the 1 kHz heartbeat)
+    const beat = 0.5 + 0.5 * Math.sin(t * 12);
+    x.strokeStyle = '#c47a12'; x.lineWidth = R * 0.08; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(cx, cy - R * 0.95); x.lineTo(cx + R * 0.08, cy - R * 1.32); x.stroke();
+    glow(x, cx + R * 0.08, cy - R * 1.4, R * 0.5, C.green, 0.4 + 0.4 * beat);
+    ball(x, cx + R * 0.08, cy - R * 1.4, R * 0.13, ['#c8ffe0', C.green, '#178a5a'], { sha: 0.3 });
+    // arms
+    for (const sd of [-1, 1]) {
+      const up = (o.armUp || 0) * (sd > 0 ? 1 : 0.6), ang = sd * (0.55 + 0.1 * Math.sin(t * 2.2 + sd)) - sd * up * 1.6;
+      const sx = cx + sd * R * 0.86, sy = cy + R * 0.12, ex = sx + Math.sin(ang) * R * 0.55, ey = sy + Math.cos(ang) * R * 0.55;
+      x.strokeStyle = '#c47a12'; x.lineWidth = R * 0.24; x.beginPath(); x.moveTo(sx, sy); x.lineTo(ex, ey); x.stroke();
+      ball(x, ex, ey, R * 0.17, C.gold, { sha: 0.4 });
+    }
+    ball(x, cx, cy, R, C.gold, { sha: 0.5 });
+    // visor
+    const vw = R * 1.36, vh = R * 0.7, vx = cx - vw / 2, vy = cy - R * 0.5;
+    const vg = x.createLinearGradient(vx, vy, vx + vw, vy + vh); vg.addColorStop(0, '#26338e'); vg.addColorStop(1, '#0d1246');
+    x.fillStyle = '#0a0f3c'; rr(x, vx, vy + R * 0.05, vw, vh, R * 0.32); x.fill();
+    x.fillStyle = vg; rr(x, vx, vy, vw, vh, R * 0.32); x.fill();
+    x.fillStyle = 'rgba(160,240,255,0.22)'; rr(x, vx + R * 0.16, vy + R * 0.07, vw * 0.45, R * 0.07, R * 0.035); x.fill();
+    for (const sd of [-1, 1]) eye(x, cx + sd * R * 0.3, vy + vh * 0.5, R * 0.18, { look: o.look || [0, 0], blink: blinkAt(t, 0.3), happy });
+    // shield emblem with a check
+    const sx = cx, sy = cy + R * 0.5, ss = R * 0.26;
+    x.fillStyle = '#ffffff'; x.beginPath(); x.moveTo(sx, sy - ss); x.lineTo(sx + ss * 0.85, sy - ss * 0.6); x.quadraticCurveTo(sx + ss * 0.8, sy + ss * 0.6, sx, sy + ss); x.quadraticCurveTo(sx - ss * 0.8, sy + ss * 0.6, sx - ss * 0.85, sy - ss * 0.6); x.closePath(); x.fill();
+    x.strokeStyle = C.green; x.lineWidth = ss * 0.26; x.lineJoin = 'round'; x.beginPath(); x.moveTo(sx - ss * 0.4, sy); x.lineTo(sx - ss * 0.08, sy + ss * 0.32); x.lineTo(sx + ss * 0.42, sy - ss * 0.3); x.stroke();
+  }
+
+  // a CPU chip, for "one program does everything"
+  function chip(x, cx, cy, s, o = {}) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    x.fillStyle = '#9aa6d8';
+    for (let i = -3; i <= 3; i++) for (const sd of [-1, 1]) { rr(x, i * 30 - 7, sd * 118 - 14, 14, 28, 5); x.fill(); rr(x, sd * 118 - 14, i * 30 - 7, 28, 14, 5); x.fill(); }
+    slab(x, -105, -105, 210, 210, 30, ['#5a6ad8', '#2a2f8e', '#120f4a']);
+    const busy = o.busy || 0;
+    glow(x, 0, 0, 120, busy > 0.5 ? '#ff8d3f' : '#56e8ff', 0.35 + 0.3 * busy);
+    x.strokeStyle = 'rgba(160,240,255,0.5)'; x.lineWidth = 4; rr(x, -62, -62, 124, 124, 18); x.stroke();
+    x.restore();
+  }
+  // a small round clock face
+  function clock(x, cx, cy, r, t, o = {}) {
+    if (r <= 1) return;
+    ball(x, cx, cy, r, ['#ffffff', '#e4e8ff', '#8f8fd8'], { sha: 0.3 });
+    x.save(); x.translate(cx, cy); x.strokeStyle = C.ink; x.lineCap = 'round';
+    x.lineWidth = r * 0.12; x.beginPath(); x.moveTo(0, 0); const a1 = t * (o.speed || 3); x.lineTo(Math.sin(a1) * r * 0.62, -Math.cos(a1) * r * 0.62); x.stroke();
+    x.lineWidth = r * 0.14; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.sin(a1 / 12) * r * 0.4, -Math.cos(a1 / 12) * r * 0.4); x.stroke();
+    x.restore();
+  }
+  // STOP stamp
+  function stamp(x, cx, cy, s, label) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.rotate(-0.12); x.scale(s, s);
+    glow(x, 0, 0, 220, C.red, 0.5);
+    x.fillStyle = 'rgba(10,8,46,0.45)'; rr(x, -150, -52, 300, 112, 30); x.fill();
+    x.fillStyle = C.red; rr(x, -150, -60, 300, 112, 30); x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.9)'; x.lineWidth = 7; rr(x, -138, -48, 276, 88, 22); x.stroke();
+    x.font = F(900, 70); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#ffffff'; x.fillText(label || 'STOP', 0, -2);
+    x.restore();
+  }
+
+  // ---------------- layout ----------------
+  const BAG = [215, 230], PUMP = [560, 440], PAT = [1040, 430], PATR = 112;
+  const TUBE1 = [[BAG[0], BAG[1] + 150], [BAG[0], 420], [330, 450], [PUMP[0] - 128, 440]];
+  const TUBE2 = [[PUMP[0] + 128, 440], [760, 450], [840, 560], [PAT[0] - PATR * 1.12, PAT[1] + PATR * 0.62]];
+
+  // ================= SCENE A: the setup, what goes wrong, how often =================
+  function sceneA(x, W, H_, t) {
+    const pull = eio(seg(t, TL.pull[0], TL.pull[1]));
+    const dive = H.ease.in(seg(t, TL.dive[0], TL.dive[1]));
+    const zIntro = 1 + 0.9 * (1 - eo(seg(t, 0, 1.6)));
+    sky(x, W, H_, t, { z: zIntro * (1 - 0.25 * pull) * Math.exp(Math.log(9) * dive), x: t * 10 });
+    // camera: pull back for the number, then dive into the pump screen
+    const zc = (1 - 0.32 * pull) * Math.exp(Math.log(9) * dive);
+    const fx = lerp(640, PUMP[0], dive), fy = lerp(360 + 40 * pull, PUMP[1] - 36, dive);
+    x.save(); x.translate(640, 360 + 70 * pull); x.scale(zc, zc); x.translate(-fx, -fy);
+
+    planet(x, 1160 - t * 4, 110, 46, PL.moon);
+    planet(x, 90 + t * 3, 640, 70, PL.coral, { glowA: 0.22 });
+
+    const bagS = back(seg(t, TL.bagIn[0], TL.bagIn[1]), 1.3), pumpS = back(seg(t, TL.pumpIn[0], TL.pumpIn[1]), 1.3), patS = back(seg(t, TL.patIn[0], TL.patIn[1]), 1.3);
+    const flowP = eio(seg(t, TL.flow[0], TL.flow[1]));
+    const kinkK = eo(seg(t, TL.kink, TL.kink + 0.35)), airU = seg(t, TL.air, TL.air + 1.6), typo = seg(t, TL.typo, TL.typo + 0.12);
+    const bad = kinkK > 0.5;
+
+    tube(x, TUBE1, t, { prog: eio(seg(t, 3.2, 3.8)), flow: flowP * (bad ? 0.2 : 1) });
+    const p2 = tube(x, TUBE2, t, { prog: eio(seg(t, 3.4, 4.0)), flow: flowP * (bad ? 0 : 1), kink: kinkK, ku: 0.42 });
+    ivBag(x, BAG[0], BAG[1], bagS, t);
+    const scr = typo > 0.5 ? '500 mL/h' : '50 mL/h';
+    pump(x, PUMP[0], PUMP[1], pumpS, t, { screen: scr, red: typo > 0.5 ? 0.6 + 0.4 * Math.sin(t * 8) : 0, run: bad ? 0.3 : 1 });
+    patient(x, PAT[0], PAT[1] + Math.sin(t * 1.6) * 4, PATR * patS, t, { worry: t > TL.kink + 0.3 ? 1 : 0, look: [-0.6, 0.1] });
+
+    // air bubble rides along the first tube
+    if (airU > 0 && airU < 1) { const p = bez(TUBE1, 0.15 + 0.8 * eio(airU)); bubbleDot(x, p[0], p[1], 15); }
+    if (t > TL.air + 1.6) { const p = bez(TUBE1, 0.95); bubbleDot(x, p[0], p[1], 15, 1 - seg(t, TL.pull[0], TL.pull[0] + 0.4)); }
+
+    // labels for the setup
+    const lblOut = 1 - seg(t, 9.4, 9.9);
+    pill(x, BAG[0] + 150, 260, 'IV bag', 32, { s: back(seg(t, TL.lbl[0], TL.lbl[0] + 0.35)), a: lblOut, bg: '#ffffff' });
+    pill(x, PUMP[0], 290, 'Pump', 32, { s: back(seg(t, TL.lbl[0] + 0.4, TL.lbl[0] + 0.75)), a: lblOut, bg: C.yellow, ptr: true });
+    pill(x, PAT[0], 258, 'Patient', 32, { s: back(seg(t, TL.lbl[0] + 0.8, TL.lbl[0] + 1.15)), a: lblOut, bg: '#ffffff', ptr: true });
+    // dotted "flow" arrow above the line
+    arrow(x, [[300, 150], [520, 90], [800, 120], [930, 260]], flowP, '#ffcf8a', 9, { dots: true, a: 0.8 * lblOut });
+    text(x, 'drug flows to the vein', 640, 200, 32, '#ffe2b8', { a: seg(t, TL.flow[1] - 0.3, TL.flow[1]) * lblOut, w: 800 });
+
+    // what goes wrong: three problems, each a red badge and a label
+    const probOut = 1 - seg(t, TL.pull[0] + 0.6, TL.pull[0] + 1.0);
+    const kp = p2[Math.round(0.42 * 80)];
+    badge(x, kp[0] + 4, kp[1] + 70, 32, false, back(seg(t, TL.kink + 0.2, TL.kink + 0.5), 2.2) * probOut);
+    pill(x, kp[0] + 4, kp[1] + 140, 'Kinked tube', 32, { s: back(seg(t, TL.kink + 0.3, TL.kink + 0.6)), a: probOut, bg: C.red, fg: '#ffffff' });
+    const bp = bez(TUBE1, 0.95);
+    badge(x, bp[0] - 30, bp[1] + 70, 32, false, back(seg(t, TL.air + 1.5, TL.air + 1.8), 2.2) * probOut);
+    pill(x, bp[0] - 50, bp[1] + 140, 'Air in the line', 32, { s: back(seg(t, TL.air + 1.6, TL.air + 1.9)), a: probOut, bg: C.red, fg: '#ffffff' });
+    badge(x, PUMP[0] + 140, PUMP[1] - 120, 32, false, back(seg(t, TL.typo + 0.1, TL.typo + 0.4), 2.2) * probOut);
+    pill(x, PUMP[0], PUMP[1] - 160, '500, not 50', 34, { s: back(seg(t, TL.typo + 0.2, TL.typo + 0.5)), a: probOut, bg: C.red, fg: '#ffffff', ptr: true });
+    x.restore();
+
+    // how often: big counter over the dimmed scene
+    if (t > TL.count[0] - 0.4) {
+      const ca = seg(t, TL.count[0] - 0.4, TL.count[0]) * (1 - seg(t, TL.dive[0], TL.dive[0] + 0.3));
+      x.save(); x.globalAlpha = ca * 0.8; x.fillStyle = '#090b2c'; x.fillRect(0, 0, W, H_); x.restore();
+      const v = Math.round(56000 * Math.pow(seg(t, TL.count[0], TL.count[1]), 2.2));
+      const land = seg(t, TL.count[1], TL.count[1] + 0.35), pop = 1 + 0.2 * Math.sin(land * Math.PI) * (land > 0 ? 1 : 0);
+      flare(x, 640, 300, land > 0 ? Math.max(0, 1 - Math.abs(t - TL.count[1] - 0.2) / 0.8) : 0, t);
+      x.save(); x.translate(640, 290); x.scale(pop, pop); x.globalAlpha = ca;
+      text(x, v.toLocaleString('en-US'), 0, 0, 150, land > 0 ? C.yellow : '#ffffff'); x.restore();
+      text(x, 'reports of pump problems', 640, 410, 48, '#ffffff', { a: ca * seg(t, TL.count[0] + 0.3, TL.count[0] + 0.7) });
+      text(x, 'sent to the FDA, 2005 to 2009', 640, 470, 34, '#bfe9ff', { a: ca * seg(t, TL.count[0] + 0.6, TL.count[0] + 1.0), w: 800 });
+      burst(x, 640, 290, land * 1.2, 77, 320);
+    }
+
+    // title hook, then it shrinks into the corner header
+    const tp = eio(seg(t, TL.shrink[0], TL.shrink[1]));
+    if (tp < 1) {
+      const words = [['When', '#ffffff'], ['a', '#ffffff'], ['chemo', C.yellow], ['pump', '#ffffff'], ['goes', '#ffffff'], ['wrong', C.pink]], px = 70;
+      x.font = F(900, px);
+      const sp = x.measureText(' ').width, ws = words.map(([w]) => x.measureText(w).width), tot = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
+      const cx = lerp(640, 132, tp), cy = lerp(340, 44, tp), sc = lerp(1, 30 / px, tp);
+      x.save(); x.translate(cx, cy); x.scale(sc, sc); x.globalAlpha = 1 - seg(tp, 0.6, 0.9);
+      let wx = -tot / 2;
+      words.forEach(([w, c], i) => {
+        const u = back(seg(t, TL.title + i * 0.11, TL.title + i * 0.11 + 0.4), 1.2);
+        x.save(); x.translate(wx + ws[i] / 2, (1 - u) * 40); x.scale(u, u); text(x, w, 0, 0, px, c); x.restore();
+        wx += ws[i] + sp;
+      });
+      x.restore();
+    }
+  }
+
+  // ================= SCENE B: inside today's pump, one program does everything =================
+  const QUEUE = [['Screen', '#ffffff'], ['Buttons', '#ffffff'], ['Motor', '#ffffff'], ['Logs', '#ffffff'], ['Alarm check', '#ff8d3f']];
+  function sceneB(x, W, H_, t) {
+    const em = 1 + 1.4 * (1 - eo(seg(t, TL.dive[1], TL.dive[1] + 0.8)));
+    sky(x, W, H_, t, { z: em, x: 200 + t * 14, tint: '#3a5cc6' });
+    x.save(); x.translate(640, 360); x.scale(em, em); x.translate(-640, -360);
+    const cIn = back(seg(t, TL.chipIn, TL.chipIn + 0.5), 1.3);
+    const busy = seg(t, TL.queue[0] + 1.0, TL.queue[0] + 1.6);
+    chip(x, 860, 420, cIn, { busy });
+    text(x, 'one program', 860, 420, 40, '#ffffff', { a: seg(t, TL.chipIn + 0.3, TL.chipIn + 0.6) });
+    text(x, 'When one program does it all', 640, 92, 52, '#ffffff', { a: seg(t, TL.chipIn, TL.chipIn + 0.4) });
+    // tasks queue up and enter the chip one at a time; the alarm check waits at the back
+    const qa = seg(t, TL.queue[0], TL.queue[0] + 0.3);
+    arrow(x, [[110, 420], [300, 420], [520, 420], [700, 420]], eio(seg(t, TL.queue[0], TL.queue[0] + 0.6)), '#9ff7ff', 8, { dots: true, a: 0.7 * qa });
+    const served = Math.floor(cl((t - (TL.queue[0] + 1.0)) / 0.75, 0, 3.999)); // how many tasks went in
+    QUEUE.forEach(([lab, col], i) => {
+      const enter = TL.queue[0] + 0.15 * i;
+      const s = back(seg(t, enter, enter + 0.35));
+      let slot = i - (t > TL.queue[0] + 1.0 ? served : 0);
+      let px = 560 - slot * 150, py = 420 - (i % 2 ? 0 : 0);
+      if (slot < 0) { px = 860; s * 0; }
+      const into = slot < 0 ? 1 : 0;
+      const isAlarm = i === QUEUE.length - 1;
+      const waitK = isAlarm ? seg(t, TL.waitT, TL.waitT + 0.3) : 0;
+      if (!into) pill(x, px, py + (i % 2 ? 70 : -70), lab, 32, { s, bg: isAlarm ? (waitK > 0 ? C.red : C.orange[1]) : col, fg: isAlarm ? '#ffffff' : C.ink, ptr: false });
+    });
+    // the alarm check waits: a clock and a "waiting..." label
+    const wk = seg(t, TL.waitT, TL.waitT + 0.3);
+    const alarmX = 560 - (QUEUE.length - 1 - served) * 150;
+    clock(x, alarmX, 600, 44 * back(wk, 2), t, { speed: 8 });
+    text(x, 'safety check waits', alarmX + 30 > 640 ? 640 : 640, 660, 36, '#ffb0c8', { a: wk });
+    x.restore();
+  }
+
+  // ================= SCENE C: InfuSafe, priorities, the catch, takeaway =================
+  const PUMPC = [330, 440], GU = [760, 400], GUR = 104;
+  const LANES = [['Safety check', '50', C.yellow], ['Sensor', '40', '#9ff7ff'], ['Screen and logs', '5', '#d9dcff']];
+  function sceneC(x, W, H_, t) {
+    const tk = eio(seg(t, TL.take[0], TL.take[1]));
+    sky(x, W, H_, t, { x: 600 + t * 16, y: -tk * 240, z: 1 });
+    const lanesK = eio(seg(t, TL.lanes[0], TL.lanes[1])) * (1 - eio(seg(t, TL.back[0], TL.back[1])));
+    x.save(); x.globalAlpha = 1 - lanesK;
+    planet(x, 1250 - (t - 32) * 4, 700, 96, PL.magenta, { glowA: 0.26 });
+    x.restore();
+    planet(x, 120 + (t - 32) * 3, 110, 30, PL.moon);
+    const sceneA_ = 1 - lanesK;
+
+    // the pump and the guardian, linked by a sensor line (hidden while the lanes show)
+    x.save(); x.globalAlpha = sceneA_ * (1 - tk);
+    const caught1 = t > TL.stop1, caught2 = t > TL.stop2;
+    const kinkK = eo(seg(t, TL.kink2, TL.kink2 + 0.25)) * (1 - seg(t, TL.air2 - 0.6, TL.air2 - 0.3));
+    const tubeC = [[PUMPC[0] + 128, 440], [470, 560], [560, 640], [700, 690]];
+    tube(x, tubeC, t, { flow: caught1 && t < TL.air2 - 0.3 ? 0 : caught2 ? 0 : 1, kink: kinkK, ku: 0.45 });
+    pump(x, PUMPC[0], PUMPC[1], 1, t, { screen: (caught1 && t < TL.air2 - 0.3) || caught2 ? 'STOPPED' : '50 mL/h', screenPx: 36, run: (caught1 && t < TL.air2 - 0.3) || caught2 ? 0 : 1 });
+    const air2 = seg(t, TL.air2 - 0.5, TL.air2);
+    if (air2 > 0 && t < TL.stop2 + 2.2) { const p = bez(tubeC, 0.1 + 0.5 * eio(air2)); bubbleDot(x, p[0], p[1], 15); }
+    // sensor link: dotted arrows both ways
+    const lk = eio(seg(t, TL.link[0], TL.link[1]));
+    arrow(x, [[PUMPC[0] + 130, 380], [520, 300], [600, 300], [GU[0] - GUR * 1.1, GU[1] - 30]], lk, '#9ff7ff', 8, { dots: true, a: 0.8 });
+    pill(x, 545, 262, 'reads the sensors', 28, { s: back(seg(t, TL.link[1] - 0.1, TL.link[1] + 0.25)), bg: '#ffffff', a: 1 - seg(t, TL.tick[1], TL.tick[1] + 0.4) });
+    const gIn = back(seg(t, TL.guardIn[0], TL.guardIn[1]), 1.3);
+    const alert = Math.max(0, 1 - Math.abs(t - TL.stop1) / 0.5) + Math.max(0, 1 - Math.abs(t - TL.stop2) / 0.5);
+    guardian(x, GU[0], GU[1] + Math.sin(t * 1.8) * 7, GUR * gIn, t, { look: t > TL.kink2 ? [-1, 0.6] : [-0.8, -0.1], alert: cl(alert), happy: t > TL.stop2 + 1.6 ? 1 : 0 });
+    pill(x, GU[0], GU[1] + GUR * 1.45, 'InfuSafe', 34, { s: back(seg(t, TL.guardIn[1], TL.guardIn[1] + 0.3)), bg: C.yellow });
+    pill(x, GU[0], GU[1] + GUR * 1.45 + 64, 'runs on QNX', 30, { s: back(seg(t, TL.qnx, TL.qnx + 0.3)), bg: '#ffffff' });
+    // 1,000 checks a second
+    const tka = seg(t, TL.tick[0] - 0.2, TL.tick[0]) * (1 - seg(t, TL.lanes[0] - 0.4, TL.lanes[0]));
+    if (tka > 0) {
+      const v = Math.round(1000 * eio(seg(t, TL.tick[0], TL.tick[1] - 0.6)));
+      const land = seg(t, TL.tick[1] - 0.6, TL.tick[1] - 0.25), pop = 1 + 0.2 * Math.sin(land * Math.PI) * (land > 0 ? 1 : 0);
+      x.save(); x.translate(1030, 250); x.scale(pop, pop); text(x, v.toLocaleString('en-US'), 0, 0, 112, land > 0 ? C.yellow : '#ffffff', { a: tka }); x.restore();
+      text(x, 'checks every second', 1030, 340, 34, '#bfe9ff', { a: tka, w: 800 });
+      // heartbeat rings around the guardian
+      for (let i = 0; i < 3; i++) { const u = (t * 1.4 + i / 3) % 1; x.save(); x.globalAlpha = tka * (1 - u) * 0.7; x.strokeStyle = C.yellow; x.lineWidth = 5; x.beginPath(); x.arc(GU[0], GU[1], GUR * (1.15 + u * 0.9), 0, TAU); x.stroke(); x.restore(); }
+    }
+    // the catches
+    stamp(x, PUMPC[0], PUMPC[1] - 175, back(seg(t, TL.stop1, TL.stop1 + 0.25), 2.4) * (1 - seg(t, TL.air2 - 0.6, TL.air2 - 0.3)), 'STOP');
+    stamp(x, PUMPC[0], PUMPC[1] - 175, back(seg(t, TL.stop2, TL.stop2 + 0.25), 2.4) * (1 - seg(t, TL.take[0], TL.take[0] + 0.3)), 'STOP');
+    const n1 = seg(t, TL.stop1 + 0.2, TL.stop1 + 0.5) * (1 - seg(t, TL.air2 - 0.6, TL.air2 - 0.3));
+    const n2 = seg(t, TL.stop2 + 0.2, TL.stop2 + 0.5) * (1 - seg(t, TL.take[0], TL.take[0] + 0.3));
+    for (const [k, num, lab, tt] of [[n1, '10 ms', 'blocked line stopped in', TL.stop1], [n2, '3 ms', 'air bubble stopped in', TL.stop2]]) {
+      if (k <= 0) continue;
+      const pop = 1 + 0.22 * Math.sin(seg(t, tt + 0.2, tt + 0.55) * Math.PI);
+      flare(x, 1020, 300, Math.max(0, 1 - Math.abs(t - tt - 0.3) / 0.7), t);
+      text(x, lab, 1020, 190, 36, '#ffffff', { a: k, w: 800 });
+      x.save(); x.translate(1020, 300); x.scale(pop, pop); text(x, num, 0, 0, 136, C.yellow, { a: k }); x.restore();
+      text(x, 'about, in our tests', 1020, 400, 28, '#bfe9ff', { a: k, w: 800 });
+      burst(x, 1020, 300, (t - tt - 0.2) * 1.2, Math.round(tt * 10), 300);
+    }
+    x.restore();
+
+    // priority lanes: the safety check always goes first
+    if (lanesK > 0.01) {
+      x.save(); x.globalAlpha = lanesK;
+      text(x, 'Safety goes first', 640, 120, 56, '#ffffff');
+      const race = seg(t, TL.race[0], TL.race[1]);
+      LANES.forEach(([lab, pr, col], i) => {
+        const y = 270 + i * 140, li = back(seg(t, TL.lanes[0] + i * 0.15, TL.lanes[0] + i * 0.15 + 0.4));
+        x.save(); x.translate(0, (1 - li) * 40);
+        text(x, lab, 300, y - 20, 32, '#ffffff', { align: 'right', w: 900 });
+        pill(x, 210, y + 30, 'priority ' + pr, 28, { bg: col });
+        x.fillStyle = 'rgba(10,8,46,0.35)'; rr(x, 340 + 5, y - 34 + 8, 620, 68, 34); x.fill();
+        x.fillStyle = 'rgba(160,170,255,0.18)'; rr(x, 340, y - 34, 620, 68, 34); x.fill();
+        // the higher the priority, the sooner it reaches the CPU
+        const delay = [0, 0.32, 0.62][i], u = eio(cl((race - delay) / 0.4));
+        const tx = lerp(382, 930, u);
+        if (i === 0) guardian(x, tx, y, 30, t, { happy: u >= 1 ? 1 : 0, look: [1, 0] });
+        else ball(x, tx, y, 26, i === 1 ? C.teal : ['#ffffff', '#d9dcff', '#7a7fc8'], { sha: 0.35 });
+        if (u >= 1 && i === 0) badge(x, 930, y - 50, 22, true, back(seg(t, TL.race[0] + 0.4, TL.race[0] + 0.7), 2));
+        x.restore();
+      });
+      chip(x, 1100, 410, 0.72 * back(seg(t, TL.lanes[0] + 0.3, TL.lanes[0] + 0.7)), { busy: 0 });
+      text(x, 'CPU', 1100, 410, 40, '#ffffff', { w: 900 });
+      x.restore();
+    }
+
+    // takeaway: everyone on the horizon, the line lands
+    if (tk > 0) {
+      planet(x, 640, lerp(1400, 1120, tk), 700, PL.teal, { glowA: 0.3, atmo: 1 });
+      const ps = back(seg(t, TL.take[0] + 0.4, TL.take[0] + 0.8)), gs = back(seg(t, TL.take[0] + 0.55, TL.take[0] + 0.95)), us = back(seg(t, TL.take[0] + 0.7, TL.take[0] + 1.1));
+      pump(x, 360, 470 + (1 - ps) * 100, 0.62 * ps, t, { screen: '50 mL/h' });
+      guardian(x, 640, 450 + Math.sin(t * 2) * 6 + (1 - gs) * 100, 80 * gs, t, { happy: 1, armUp: 1 });
+      patient(x, 920, 430 + Math.sin(t * 2.2) * 5 + (1 - us) * 100, 66 * us, t, { happy: 1 });
+      const l1 = back(seg(t, TL.line1, TL.line1 + 0.4)), l2 = back(seg(t, TL.line2, TL.line2 + 0.4));
+      x.save(); x.translate(640, 112); x.scale(l1, l1); text(x, '100 of 100 faults caught', 0, 0, 66, C.yellow); x.restore();
+      x.save(); x.translate(640, 196); x.scale(l2, l2); text(x, 'On time, every time.', 0, 0, 54, '#ffffff'); x.restore();
+      if (t > TL.line2) for (let i = 0; i < 7; i++) { const q = H.rng(400 + i); spark(x, q.range(120, 1160), q.range(60, 300), q.range(8, 15) * (0.5 + 0.5 * Math.sin(t * 3 + i)), '#ffffff', seg(t, TL.line2, TL.line2 + 0.4)); }
+    }
+  }
+
+  // ================= EXPLAINER =================
+  function explainer(ctx, W, H_, t) {
+    const x = ctx;
+    const sw = eio(seg(t, TL.sweep[0], TL.sweep[1])), spx = lerp(W + 980, -980, sw);
+    if (t < TL.dive[1] + 0.05) sceneA(x, W, H_, t);
+    else if (t < TL.sweep[0] || spx > 640) sceneB(x, W, H_, t);
+    else sceneC(x, W, H_, t);
+    // dive into the pump screen: glow whiteout
+    const wo = seg(t, TL.dive[0] + 0.5, TL.dive[1]) * (1 - seg(t, TL.dive[1], TL.dive[1] + 0.45));
+    if (wo > 0) {
+      const g = x.createRadialGradient(640, 360, 0, 640, 360, 800);
+      g.addColorStop(0, H.rgba('#e8fdff', wo)); g.addColorStop(0.5, H.rgba('#8ff0ff', wo * 0.95)); g.addColorStop(1, H.rgba('#2a3a9c', wo * 0.9));
+      x.fillStyle = g; x.fillRect(0, 0, W, H_);
+    }
+    // the foreground planet sweep (wipe) into the solution
+    if (sw > 0 && sw < 1) planet(x, spx, 380 + (sw - 0.5) * 120, 880, PL.coral, { glowA: 0.4 });
+    if (t > TL.shrink[1] - 0.2) header(x, seg(t, TL.shrink[1] - 0.2, TL.shrink[1]));
+    finish(x, W, H_, t);
+  }
+  window.explainer = explainer;
+  window.EXPLAINER_INTERNALS = { C, TL, seg, back, eio };
+})();
+</script>
+<script>
+const BEATS = [
+  { n: 1, name: 'Hook', a: 0, b: 3.5, key: 1.2,
+    text: ['When a chemo pump goes wrong', 'InfuSafe (corner header)'],
+    vo: 'Chemo is given through an infusion pump.',
+    flow: 'Opens on the camera pulling back through the stars. The title pops in word by word, then shrinks into the corner as the InfuSafe header while the IV bag, pump and patient pop in.',
+    sound: ['airy whoosh', 'pluck per word', 'boop as each object lands'] },
+  { n: 2, name: 'The setup', a: 3.5, b: 10, key: 7.2,
+    text: ['IV bag', 'Pump', 'Patient', 'drug flows to the vein'],
+    vo: 'A pump pushes the drug from a bag, through a thin tube, into the vein.',
+    flow: 'Continuous. Same shot. Labels land on each object, a dotted arrow draws over the line, and drops start moving through the tube.',
+    sound: ['pluck per label', 'soft tocks as the arrow draws', 'quiet drip blips'] },
+  { n: 3, name: 'What goes wrong', a: 10, b: 18, key: 16.6,
+    text: ['Kinked tube', 'Air in the line', '500, not 50'],
+    vo: 'But things go wrong. A tube gets kinked. Air gets into the line. Someone types 500 instead of 50.',
+    flow: 'Continuous. The setup labels fade. The tube bends into a V and glows red, a bubble rides the line, and the pump screen flips to 500. Each lands with a red X and a label. The patient looks worried.',
+    sound: ['low two-note "nope" + thud for each', 'bubble glide', 'error buzz on 500'] },
+  { n: 4, name: 'How often', a: 18, b: 23.4, key: 22.6,
+    text: ['56,000', 'reports of pump problems', 'sent to the FDA, 2005 to 2009'],
+    vo: 'From 2005 to 2009, the FDA got about 56,000 reports of problems with infusion pumps.',
+    flow: 'Continuous. The camera pulls back and the scene dims behind a counter that speeds up and lands with a flare.',
+    sound: ['counter tocks, under 12 per second', 'swell, then a warm impact on 56,000'] },
+  { n: 5, name: 'One program does it all', a: 23.4, b: 31.1, key: 29.6,
+    text: ['When one program does it all', 'one program', 'Screen, Buttons, Motor, Logs, Alarm check', 'safety check waits'],
+    vo: 'If one program runs the screen, the buttons, the motor and the alarms, a busy moment can make the safety check wait its turn.',
+    flow: 'Continuous, through scale. The camera dives into the pump screen, a cyan glow blooms, and we come out inside it at the chip. Tasks queue up and go in one by one. The alarm check is last in line and turns red, with a spinning clock.',
+    sound: ['dive whoosh + bloom chord', 'tock as each task enters', 'fast clock ticks', 'low wobble on "waits"'] },
+  { n: 6, name: 'InfuSafe', a: 31.1, b: 39.8, key: 38.0,
+    text: ['InfuSafe', 'runs on QNX', 'reads the sensors', '1,000 checks every second'],
+    vo: 'InfuSafe is a separate safety monitor. It runs on QNX, a real-time operating system, and checks the pump 1,000 times every second.',
+    flow: 'Scene change. A big coral planet sweeps across the camera as the wipe, because the story turns from the problem to the fix. The guardian pops in beside the pump, a dotted line links them, and heartbeat rings pulse while the counter climbs.',
+    sound: ['planet sweep whoosh + low rumble', 'boop as the guardian lands', 'pluck per label', 'counter tocks', 'soft heartbeat blips'] },
+  { n: 7, name: 'Safety goes first', a: 39.8, b: 45.2, key: 42.3,
+    text: ['Safety goes first', 'Safety check / priority 50', 'Sensor / priority 40', 'Screen and logs / priority 5', 'CPU'],
+    vo: 'Its check always runs first. Nothing else can push it aside.',
+    flow: 'Continuous. The pump fades back and three lanes slide in. A small guardian races the other tasks to the CPU and always gets there first, with a green check.',
+    sound: ['pluck per lane', 'swish for each racer', 'bright ding when safety arrives first'] },
+  { n: 8, name: 'The catch', a: 45.2, b: 52.6, key: 47.9,
+    text: ['STOP', 'blocked line stopped in', '10 ms', 'air bubble stopped in', '3 ms', 'about, in our tests'],
+    vo: 'When the line gets blocked, it stops the pump in about 10 milliseconds. An air bubble, in about 3.',
+    flow: 'Continuous. The lanes fold away and we are back at the pump and guardian. The tube kinks, the guardian flashes, a STOP stamp slams on the pump and 10 ms lands as the big number. Then the same for an air bubble and 3 ms.',
+    sound: ['stamp hit', 'impact + flare on each number (the biggest hits)'] },
+  { n: 9, name: 'Takeaway', a: 52.6, b: 58, key: 56.6,
+    text: ['100 of 100 faults caught', 'On time, every time.'],
+    vo: 'In our tests, it caught 100 out of 100 faults. On time, every time.',
+    flow: 'Continuous. The camera tilts up to a planet horizon. Pump, guardian and patient pop up, all happy, and the two lines land and hold for a second.',
+    sound: ['three boops', 'warm resolving chord'] },
+];
+const fmt = (s) => { const m = Math.floor(s / 60), r = s - m * 60; return m + ':' + r.toFixed(1).padStart(4, '0'); };
+const root = document.getElementById('beats');
+const items = BEATS.map((b) => {
+  const el = document.createElement('section'); el.className = 'beat';
+  el.innerHTML = `<canvas width="1280" height="720" aria-label="Beat ${b.n} key frame"></canvas>
+  <div class="meta">
+    <div class="head"><span class="num">${b.n}</span><span class="name">${b.name}</span><span class="time">${fmt(b.a)} to ${fmt(b.b)}</span></div>
+    <p class="vo">${b.vo}</p>
+    <div class="row"><span class="k">On screen</span><div class="chips">${b.text.map((s) => `<span class="chip">${s}</span>`).join('')}</div></div>
+    <div class="row"><span class="k">How it gets here</span><p class="v">${b.flow}</p></div>
+    <div class="row"><span class="k">Key sounds</span><p class="v">${b.sound.join(' · ')}</p></div>
+  </div>`;
+  root.appendChild(el);
+  return [el.querySelector('canvas'), b];
+});
+(async () => {
+  try { await Promise.all(['900 64px "Nunito"', '800 32px "Nunito"', '700 28px "Nunito"'].map((f) => document.fonts.load(f, 'AaZz09'))); await document.fonts.ready; } catch (e) {}
+  for (const [cv, b] of items) { const ctx = cv.getContext('2d'); window.explainer(ctx, 1280, 720, b.key); await new Promise((r) => setTimeout(r, 0)); }
+})();
+</script>

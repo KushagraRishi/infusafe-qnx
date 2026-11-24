@@ -1,3 +1,7 @@
 build/
 *.o
 .DS_Store
+video/explainer/media/*.mp4
+video/explainer/media/frames/
+video/explainer/render/node_modules/
+video/explainer/render.html

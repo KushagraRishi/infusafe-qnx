@@ -1,0 +1,121 @@
+<title>InfuSafe Storyboard</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800;900&display=block">
+<style>
+/* Layout: one column of story beats, each a 16:9 still frame with its notes beside it. Single dark look, the explainer's own night sky. */
+:root {
+  --bg: #0b0c2e; --panel: #15163f; --line: #2a2b66; --fg: #eef0ff; --dim: #a9b0e0; --gold: #ffd23f; --rose: #ff5d8f; --cyan: #56e8ff;
+  --display: "Nunito", "Fredoka", system-ui, sans-serif; --body: "Nunito", system-ui, sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-family: var(--display); font-weight: 900; font-size: clamp(30px, 5vw, 44px); margin: 0 0 6px; text-wrap: balance; }
+.lede { color: var(--dim); margin: 0 0 28px; max-width: 68ch; }
+.beats { display: grid; gap: 22px; }
+.beat { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+@media (max-width: 820px) { .beat { grid-template-columns: minmax(0, 1fr); } }
+canvas { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; display: block; background: #090b2c; }
+.meta { min-width: 0; display: grid; gap: 10px; align-content: start; }
+.head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.num { font-family: var(--display); font-weight: 900; font-size: 28px; color: var(--gold); font-variant-numeric: tabular-nums; }
+.name { font-weight: 900; font-size: 20px; }
+.time { color: var(--dim); font-variant-numeric: tabular-nums; font-weight: 700; }
+.row { display: grid; gap: 2px; }
+.k { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cyan); font-weight: 800; }
+.v { margin: 0; }
+.vo { margin: 0; font-size: 17px; font-weight: 700; color: #fff; border-left: 3px solid var(--rose); padding-left: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: #23246a; border-radius: 999px; padding: 2px 10px; font-weight: 700; font-size: 14px; }
+.notes { margin-top: 36px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; }
+.notes h2 { font-family: var(--display); font-weight: 900; font-size: 24px; margin: 0 0 10px; }
+.notes ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.notes a { color: var(--cyan); }
+</style>
+
+<div class="wrap">
+  <h1>InfuSafe explainer storyboard</h1>
+  <p class="lede">58 seconds, 9 beats. Each frame below is drawn with the final animation's own code. The pink lines are the voiceover script for you to read. Tell me what to change, or say go and I'll animate it.</p>
+  <div class="beats" id="beats"></div>
+  <div class="notes">
+    <h2>Facts and numbers I used</h2>
+    <ul>
+      <li><b>56,000 reports, 2005 to 2009.</b> From the FDA's <a href="https://www.fda.gov/medical-devices/infusion-pumps/white-paper-infusion-pump-improvement-initiative" target="_blank" rel="noopener">Infusion Pump Improvement Initiative white paper</a>. These are adverse event reports, not confirmed injuries.</li>
+      <li><b>"One program does it all"</b> is a simplified picture of a non-real-time design, not a claim about any brand. Many real pumps already have their own alarms and detectors. The voiceover says "if", on purpose.</li>
+      <li><b>10 ms and 3 ms</b> are our averages from QNX 8.0 in QEMU (9.7 ms for a blocked line, 3.1 ms for air), rounded.</li>
+      <li><b>100 of 100</b> is our bench: 5 faults, 20 runs each, none missed.</li>
+      <li>The drug, the 50 mL/h rate and the IV bag are a simulated demo, not a real patient setup.</li>
+    </ul>
+  </div>
+</div>
+
+<script>/*LIB*/</script>
+<script>/*EXPLAINER*/</script>
+<script>
+const BEATS = [
+  { n: 1, name: 'Hook', a: 0, b: 3.5, key: 1.2,
+    text: ['When a chemo pump goes wrong', 'InfuSafe (corner header)'],
+    vo: 'Chemo is given through an infusion pump.',
+    flow: 'Opens on the camera pulling back through the stars. The title pops in word by word, then shrinks into the corner as the InfuSafe header while the IV bag, pump and patient pop in.',
+    sound: ['airy whoosh', 'pluck per word', 'boop as each object lands'] },
+  { n: 2, name: 'The setup', a: 3.5, b: 10, key: 7.2,
+    text: ['IV bag', 'Pump', 'Patient', 'drug flows to the vein'],
+    vo: 'A pump pushes the drug from a bag, through a thin tube, into the vein.',
+    flow: 'Continuous. Same shot. Labels land on each object, a dotted arrow draws over the line, and drops start moving through the tube.',
+    sound: ['pluck per label', 'soft tocks as the arrow draws', 'quiet drip blips'] },
+  { n: 3, name: 'What goes wrong', a: 10, b: 18, key: 16.6,
+    text: ['Kinked tube', 'Air in the line', '500, not 50'],
+    vo: 'But things go wrong. A tube gets kinked. Air gets into the line. Someone types 500 instead of 50.',
+    flow: 'Continuous. The setup labels fade. The tube bends into a V and glows red, a bubble rides the line, and the pump screen flips to 500. Each lands with a red X and a label. The patient looks worried.',
+    sound: ['low two-note "nope" + thud for each', 'bubble glide', 'error buzz on 500'] },
+  { n: 4, name: 'How often', a: 18, b: 23.4, key: 22.6,
+    text: ['56,000', 'reports of pump problems', 'sent to the FDA, 2005 to 2009'],
+    vo: 'From 2005 to 2009, the FDA got about 56,000 reports of problems with infusion pumps.',
+    flow: 'Continuous. The camera pulls back and the scene dims behind a counter that speeds up and lands with a flare.',
+    sound: ['counter tocks, under 12 per second', 'swell, then a warm impact on 56,000'] },
+  { n: 5, name: 'One program does it all', a: 23.4, b: 31.1, key: 29.6,
+    text: ['When one program does it all', 'one program', 'Screen, Buttons, Motor, Logs, Alarm check', 'safety check waits'],
+    vo: 'If one program runs the screen, the buttons, the motor and the alarms, a busy moment can make the safety check wait its turn.',
+    flow: 'Continuous, through scale. The camera dives into the pump screen, a cyan glow blooms, and we come out inside it at the chip. Tasks queue up and go in one by one. The alarm check is last in line and turns red, with a spinning clock.',
+    sound: ['dive whoosh + bloom chord', 'tock as each task enters', 'fast clock ticks', 'low wobble on "waits"'] },
+  { n: 6, name: 'InfuSafe', a: 31.1, b: 39.8, key: 38.0,
+    text: ['InfuSafe', 'runs on QNX', 'reads the sensors', '1,000 checks every second'],
+    vo: 'InfuSafe is a separate safety monitor. It runs on QNX, a real-time operating system, and checks the pump 1,000 times every second.',
+    flow: 'Scene change. A big coral planet sweeps across the camera as the wipe, because the story turns from the problem to the fix. The guardian pops in beside the pump, a dotted line links them, and heartbeat rings pulse while the counter climbs.',
+    sound: ['planet sweep whoosh + low rumble', 'boop as the guardian lands', 'pluck per label', 'counter tocks', 'soft heartbeat blips'] },
+  { n: 7, name: 'Safety goes first', a: 39.8, b: 45.2, key: 42.3,
+    text: ['Safety goes first', 'Safety check / priority 50', 'Sensor / priority 40', 'Screen and logs / priority 5', 'CPU'],
+    vo: 'Its check always runs first. Nothing else can push it aside.',
+    flow: 'Continuous. The pump fades back and three lanes slide in. A small guardian races the other tasks to the CPU and always gets there first, with a green check.',
+    sound: ['pluck per lane', 'swish for each racer', 'bright ding when safety arrives first'] },
+  { n: 8, name: 'The catch', a: 45.2, b: 52.6, key: 47.9,
+    text: ['STOP', 'blocked line stopped in', '10 ms', 'air bubble stopped in', '3 ms', 'about, in our tests'],
+    vo: 'When the line gets blocked, it stops the pump in about 10 milliseconds. An air bubble, in about 3.',
+    flow: 'Continuous. The lanes fold away and we are back at the pump and guardian. The tube kinks, the guardian flashes, a STOP stamp slams on the pump and 10 ms lands as the big number. Then the same for an air bubble and 3 ms.',
+    sound: ['stamp hit', 'impact + flare on each number (the biggest hits)'] },
+  { n: 9, name: 'Takeaway', a: 52.6, b: 58, key: 56.6,
+    text: ['100 of 100 faults caught', 'On time, every time.'],
+    vo: 'In our tests, it caught 100 out of 100 faults. On time, every time.',
+    flow: 'Continuous. The camera tilts up to a planet horizon. Pump, guardian and patient pop up, all happy, and the two lines land and hold for a second.',
+    sound: ['three boops', 'warm resolving chord'] },
+];
+const fmt = (s) => { const m = Math.floor(s / 60), r = s - m * 60; return m + ':' + r.toFixed(1).padStart(4, '0'); };
+const root = document.getElementById('beats');
+const items = BEATS.map((b) => {
+  const el = document.createElement('section'); el.className = 'beat';
+  el.innerHTML = `<canvas width="1280" height="720" aria-label="Beat ${b.n} key frame"></canvas>
+  <div class="meta">
+    <div class="head"><span class="num">${b.n}</span><span class="name">${b.name}</span><span class="time">${fmt(b.a)} to ${fmt(b.b)}</span></div>
+    <p class="vo">${b.vo}</p>
+    <div class="row"><span class="k">On screen</span><div class="chips">${b.text.map((s) => `<span class="chip">${s}</span>`).join('')}</div></div>
+    <div class="row"><span class="k">How it gets here</span><p class="v">${b.flow}</p></div>
+    <div class="row"><span class="k">Key sounds</span><p class="v">${b.sound.join(' · ')}</p></div>
+  </div>`;
+  root.appendChild(el);
+  return [el.querySelector('canvas'), b];
+});
+(async () => {
+  try { await Promise.all(['900 64px "Nunito"', '800 32px "Nunito"', '700 28px "Nunito"'].map((f) => document.fonts.load(f, 'AaZz09'))); await document.fonts.ready; } catch (e) {}
+  for (const [cv, b] of items) { const ctx = cv.getContext('2d'); window.explainer(ctx, 1280, 720, b.key); await new Promise((r) => setTimeout(r, 0)); }
+})();
+</script>
