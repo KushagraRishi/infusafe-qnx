@@ -14,9 +14,11 @@ const out = path.resolve(args[0] || 'explainer.mp4');
 const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const stills = opt('--stills');
 const FPS = 30;
+const piece = opt('--piece') || 'explainer';
+const P = piece === 'outro' ? { draw: 'outro', dur: 'OUTRO_DURATION', sound: 'outroSound', prep: 'prepareOutro' } : { draw: 'explainer', dur: 'DURATION', sound: 'scoreSound', prep: 'prepare' };
 
 // tiny static server so the canvas can read footage frames without tainting
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.jpg': 'image/jpeg' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.jpg': 'image/jpeg' };
 const server = http.createServer((req, res) => {
   const p = path.join(root, decodeURIComponent(req.url.split('?')[0]));
   if (!p.startsWith(root) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -35,30 +37,30 @@ await page.setViewport({ width: 1280, height: 720 });
 await page.goto(`http://127.0.0.1:${port}/render.html`, { waitUntil: 'networkidle0' });
 await page.evaluate(async () => { await Promise.all(['900 64px "Nunito"', '800 32px "Nunito"', '700 28px "Nunito"'].map((f) => document.fonts.load(f, 'AaZz09'))); await document.fonts.ready; });
 
-const frame = (t, q) => page.evaluate(async (t, q) => {
-  await window.prepare(t);
+const frame = (t, q) => page.evaluate(async (t, q, P) => {
+  await window[P.prep](t);
   const c = document.getElementById('c'), x = c.getContext('2d');
   x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, 1280, 720);
-  window.explainer(x, 1280, 720, t);
+  window[P.draw](x, 1280, 720, t);
   return c.toDataURL('image/jpeg', q).split(',')[1];
-}, t, q);
+}, t, q, P);
 
 if (stills) {
   fs.mkdirSync(out, { recursive: true });
   for (const t of stills.split(',').map(Number)) fs.writeFileSync(path.join(out, `s_${t.toFixed(2)}.jpg`), Buffer.from(await frame(t, 0.9), 'base64'));
   console.log('stills written to', out);
 } else {
-  const D = await page.evaluate(() => window.DURATION);
+  const D = await page.evaluate((k) => window[k], P.dur);
   const t0 = Number(opt('--from') || 0), t1 = Number(opt('--to') || D);
   // sound first: the offline score, in voiceover mode so a narration can sit on top
-  const audio = await page.evaluate(async (t0, t1) => {
-    const r = await SOUND.renderOffline(window.scoreSound, window.DURATION, 48000, { voiceover: true });
+  const audio = await page.evaluate(async (t0, t1, P) => {
+    const r = await SOUND.renderOffline(window[P.sound], window[P.dur], 48000, { voiceover: true });
     const s0 = Math.floor(t0 * 48000) * 2, s1 = Math.floor(t1 * 48000) * 2;
     const seg = r.inter.subarray(s0, s1), i16 = new Int16Array(seg.length);
     for (let i = 0; i < seg.length; i++) i16[i] = Math.max(-1, Math.min(1, seg[i])) * 32767;
     let bin = ''; const u8 = new Uint8Array(i16.buffer); for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
     return { b64: btoa(bin), peak: r.peak };
-  }, t0, t1);
+  }, t0, t1, P);
   const pcm = Buffer.from(audio.b64, 'base64');
   const wavPath = out.replace(/\.mp4$/, '.wav');
   const hdr = Buffer.alloc(44);

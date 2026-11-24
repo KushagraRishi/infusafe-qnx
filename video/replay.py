@@ -10,6 +10,10 @@ import os
 import sys
 import time
 
+SPEED = float(os.environ.get('SPEED', '1'))
+def nap(sec):
+    time.sleep(sec * SPEED)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 S = json.load(open(os.path.join(ROOT, "build", "video", "session.json")))
 
@@ -31,16 +35,16 @@ def clear():
 
 def caption(text, hold=1.6):
     out(f"{ROSE}{BOLD}» {text}{RESET}\n")
-    time.sleep(hold)
+    nap(hold)
 
 
 def type_cmd(cmd):
     out("# ")
-    time.sleep(0.5)
+    nap(0.5)
     for ch in cmd:
         out(ch)
-        time.sleep(0.045)
-    time.sleep(0.35)
+        nap(0.045)
+    nap(0.35)
     out("\n")
 
 
@@ -49,7 +53,7 @@ def show(text, line_delay=0.03, highlight=()):
         if any(h in line for h in highlight):
             line = f"{TEAL}{BOLD}{line}{RESET}"
         out(line + "\n")
-        time.sleep(line_delay)
+        nap(line_delay)
 
 
 def step(i):
@@ -62,41 +66,41 @@ def run():
     boot = [l for l in S["boot"].replace("\r", "").split("\n") if l.strip()]
     for line in boot[-14:]:
         out(f"{DIM}{line}{RESET}\n" if "QNX 8.0 is up" not in line and "Type:" not in line else line + "\n")
-        time.sleep(0.08)
-    time.sleep(1.2)
+        nap(0.08)
+    nap(1.2)
 
     type_cmd(step(0)["cmd"])
     show(step(0)["out"], highlight=("QNX",))
-    time.sleep(2.5)
+    nap(2.5)
 
     clear()
     caption("Every drug has a soft limit and a hard limit.")
     type_cmd(step(1)["cmd"])
     show(step(1)["out"], line_delay=0.08)
-    time.sleep(2.5)
+    nap(2.5)
     out("\n")
     caption("A typo: 500 mL/h of chemo instead of 50.")
     type_cmd(step(2)["cmd"])
     show(step(2)["out"], highlight=("hard limit",))
-    time.sleep(3.5)
+    nap(3.5)
 
     clear()
     caption("Start the pump at 50 mL/h. It shows up as a device: /dev/infusafe")
     type_cmd(step(3)["cmd"])
     show(step(3)["out"])
-    time.sleep(1.0)
+    nap(1.0)
     type_cmd("cat /dev/infusafe")
     show(step(4)["out"], highlight=('"state"', '"motor"'))
-    time.sleep(4.0)
+    nap(4.0)
 
     clear()
     caption("Block the line.")
     type_cmd('echo "inject occlusion" > /dev/infusafe')
     show(step(5)["out"])
-    time.sleep(0.8)
+    nap(0.8)
     type_cmd(step(6)["cmd"])
     show(step(6)["out"], highlight=('"state"', '"reason"', '"motor"', '"last_stop_ms"'))
-    time.sleep(5.0)
+    nap(5.0)
 
     clear()
     caption("Clear it. Now an air bubble.")
@@ -104,13 +108,13 @@ def run():
     show(step(7)["out"])
     type_cmd('echo "inject air" > /dev/infusafe')
     show(step(8)["out"])
-    time.sleep(0.8)
+    nap(0.8)
     type_cmd(step(9)["cmd"])
     show(step(9)["out"], highlight=('"state"', '"reason"', '"motor"', '"last_stop_ms"'))
-    time.sleep(5.0)
+    nap(5.0)
     type_cmd("echo quit > /dev/infusafe")
     show(step(10)["out"])
-    time.sleep(1.0)
+    nap(1.0)
 
     clear()
     caption("Bench: inject every fault 5 times and time each stop.")
@@ -126,9 +130,9 @@ def run():
     # Rows appear at the pace the real run took (it took bench["seconds"]).
     gap = min(bench["seconds"], 12.0) / max(len(rows), 1)
     for r in rows:
-        time.sleep(gap)
+        nap(gap)
         show(r, highlight=(r,))
-    time.sleep(1.0)
+    nap(1.0)
     out("\n")
     caption("Every fault caught. End of the QNX session.", hold=4.0)
 

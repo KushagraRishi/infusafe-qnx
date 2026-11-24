@@ -933,6 +933,226 @@
     k.play('sparkle', TL.line2 + 0.4, { gain: 0.6, n: 6 });
   };
 
+
+  // ================= OUTRO: live on QNX, how it uses QNX, bugs found, complete product, end =================
+  const TERM_S = window.TERM_S || 55.4;              // length of the recorded QNX session
+  const O = {};
+  O.term0 = 3.2; O.term1 = O.term0 + TERM_S;
+  O.arch0 = O.term1 + 0.5; O.arch1 = O.arch0 + 22;
+  O.bug0 = O.arch1; O.bug1 = O.bug0 + 14;
+  O.prod0 = O.bug1; O.prod1 = O.prod0 + 10;
+  O.end0 = O.prod1; O.D = O.end0 + 8;
+  window.OUTRO_DURATION = O.D; window.O_TL = O;
+  const TERM = { n: 'term', a: O.term0, b: O.term1, len: Math.round(TERM_S * FPS) };
+  window.prepareOutro = async function (t) {
+    if (t < TERM.a || t >= TERM.b) return;
+    const base = window.FOOTAGE_BASE || 'media/frames/', k = frameKey(TERM, t);
+    if (IMG.has(k)) return IMG.get(k).ready;
+    const im = new Image(); im.ready = new Promise((res) => { im.onload = res; im.onerror = res; }); im.src = base + k + '.jpg';
+    IMG.set(k, im);
+    if (IMG.size > 60) for (const kk of [...IMG.keys()].slice(0, 30)) IMG.delete(kk);
+    return im.ready;
+  };
+  const MONO = (px) => `700 ${px}px "Menlo", "SF Mono", monospace`;
+  function codePill(x, cx, cy, code, file, s, a = 1) {
+    if (s <= 0.01 || a <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s); x.globalAlpha *= a;
+    x.font = MONO(28); const w1 = x.measureText(code).width;
+    x.font = F(800, 24); const w2 = x.measureText(file).width;
+    const w = Math.max(w1, w2) + 48, h = 96;
+    x.fillStyle = 'rgba(10,8,46,0.45)'; rr(x, -w / 2 + 5, -h / 2 + 10, w, h, 22); x.fill();
+    x.fillStyle = '#0d1246'; rr(x, -w / 2, -h / 2, w, h, 22); x.fill();
+    x.strokeStyle = 'rgba(86,232,255,0.7)'; x.lineWidth = 3; rr(x, -w / 2, -h / 2, w, h, 22); x.stroke();
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = MONO(28); x.fillStyle = '#9ff7ff'; x.fillText(code, 0, -14);
+    x.font = F(800, 24); x.fillStyle = '#bfc6ff'; x.fillText(file, 0, 24);
+    x.restore();
+  }
+  // a monitor bezel the QNX terminal plays inside
+  function monitor(x, cx, cy, w, h, s) {
+    if (s <= 0.01) return;
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    glow(x, 0, 0, w * 0.75, '#56e8ff', 0.18);
+    slab(x, -w / 2 - 22, -h / 2 - 22, w + 44, h + 44, 34, ['#5a6ad8', '#2a2f8e', '#120f4a']);
+    x.fillStyle = '#05061c'; rr(x, -w / 2, -h / 2, w, h, 14); x.fill();
+    x.restore();
+  }
+  function termScreen(x, t, rect) {
+    const im = IMG.get(frameKey(TERM, Math.min(t, TERM.b - 0.001)));
+    x.save(); rr(x, rect[0], rect[1], rect[2], rect[3], 14); x.clip();
+    if (im && im.complete && im.naturalWidth) x.drawImage(im, rect[0], rect[1], rect[2], rect[3]);
+    x.restore();
+  }
+
+  function outro(ctx, W, H_, t) {
+    const x = ctx;
+    sky(x, W, H_, t, { x: 900 + t * 12, y: 0, z: 1 });
+    // ---- live on QNX: the monitor drops in, the camera pushes onto its screen
+    if (t < O.arch0 + 0.4) {
+      const mIn = back(seg(t, 0.2, 0.9), 1.3), push = eio(seg(t, 2.2, O.term0));
+      const pullOut = eio(seg(t, O.term1 - 0.2, O.arch0 + 0.3));
+      const z = lerp(0.78, 1.0, push) * (1 - 0.25 * pullOut), fade = 1 - pullOut;
+      x.save(); x.globalAlpha = fade; x.translate(640, 372); x.scale(z, z); x.translate(-640, -372);
+      monitor(x, 640, 372, 1180, 664, mIn);
+      if (t >= O.term0) termScreen(x, t, [50, 40, 1180, 664]);
+      else {
+        x.save(); x.globalAlpha *= seg(t, 0.6, 1.0);
+        text(x, 'Running on real QNX 8.0', 640, 300, 64, '#ffffff');
+        x.restore();
+        pill(x, 640, 410, 'QEMU · x86_64 · booted from our own image', 30, { s: back(seg(t, 1.0, 1.35)), bg: C.yellow });
+      }
+      x.restore();
+      if (t > O.term0) pill(x, 1130, 34, 'Live on QNX 8.0', 26, { s: back(seg(t, O.term0 + 0.3, O.term0 + 0.6)), a: fade, bg: C.green });
+    }
+
+    // ---- how it uses QNX: the architecture builds up, each piece labelled with its real code
+    if (t > O.arch0 - 0.2 && t < O.arch1 + 0.6) {
+      const a = seg(t, O.arch0 - 0.2, O.arch0 + 0.3) * (1 - seg(t, O.arch1, O.arch1 + 0.5));
+      const L = (d) => O.arch0 + d;
+      x.save(); x.globalAlpha = a;
+      text(x, 'How it uses QNX', 640, 70, 56, '#ffffff');
+      // microkernel bar
+      const kIn = back(seg(t, L(0.6), L(1.1)));
+      x.save(); x.translate(640, 662); x.scale(kIn, kIn);
+      slab(x, -520, -44, 1040, 88, 44, ['#ffa0c4', '#de4b93', '#4e1670']);
+      text(x, 'QNX 8.0 microkernel', 0, 0, 40, '#ffffff');
+      x.restore();
+      // the threads and the resource manager
+      const nodes = [
+        { k: 'sensor', x: 250, y: 370, d: 1.6, lab: 'Sensor thread', pr: 'priority 40' },
+        { k: 'mon', x: 640, y: 340, d: 2.2, lab: 'Safety monitor', pr: 'priority 50' },
+        { k: 'dev', x: 1030, y: 370, d: 2.8, lab: '/dev/infusafe', pr: 'resource manager' },
+      ];
+      nodes.forEach((n) => {
+        const s2 = back(seg(t, L(n.d), L(n.d + 0.4)), 1.4);
+        if (n.k === 'sensor') ball(x, n.x, n.y, 62 * s2, C.teal, { sha: 0.45 });
+        if (n.k === 'mon') guardian(x, n.x, n.y + Math.sin(t * 2) * 5, 76 * s2, t, { look: [0, 0.4] });
+        if (n.k === 'dev') { chip(x, n.x, n.y, 0.55 * s2); }
+        pill(x, n.x, n.y + 120, n.lab, 30, { s: back(seg(t, L(n.d + 0.2), L(n.d + 0.55))), bg: n.k === 'mon' ? C.yellow : '#ffffff' });
+        text(x, n.pr, n.x, n.y + 170, 28, '#bfe9ff', { a: seg(t, L(n.d + 0.4), L(n.d + 0.7)), w: 800 });
+      });
+      // kernel timer pulses: dots rise from the kernel to the monitor and sensor every beat
+      const pulseOn = seg(t, L(4.0), L(4.4));
+      for (const [tx, ty] of [[640, 420], [250, 430]]) {
+        arrow(x, [[tx, 616], [tx, 600], [tx, 580], [tx, ty + 160]], eio(seg(t, L(4.0), L(4.6))), '#ffe28a', 7, { dots: true, a: 0.85 });
+        if (pulseOn > 0) for (let i = 0; i < 2; i++) { const u = (t * 1.6 + i * 0.5) % 1; const py = lerp(612, ty + 165, u); glow(x, tx, py, 22, '#ffe28a', 0.8 * pulseOn); x.fillStyle = '#fff6c8'; x.beginPath(); x.arc(tx, py, 6, 0, TAU); x.fill(); }
+      }
+      pill(x, 445, 590, 'timer pulse every 1 ms', 28, { s: back(seg(t, L(4.5), L(4.85))), bg: '#ffe28a' });
+      // sensor -> monitor: lock-free reading
+      arrow(x, [[320, 340], [400, 290], [500, 290], [560, 320]], eio(seg(t, L(7.0), L(7.6))), '#9ff7ff', 7, { dots: true });
+      pill(x, 420, 262, 'lock-free reading', 28, { s: back(seg(t, L(7.4), L(7.75))), bg: '#ffffff' });
+      // shell -> /dev/infusafe
+      arrow(x, [[1210, 200], [1180, 240], [1110, 270], [1070, 300]], eio(seg(t, L(9.6), L(10.2))), '#9ff7ff', 7, { dots: true });
+      pill(x, 1150, 175, 'cat · echo', 28, { s: back(seg(t, L(9.4), L(9.75))), bg: '#ffffff' });
+      // the real code, one callout at a time
+      const calls = [
+        [L(12.0), 'timer_create + SIGEV_PULSE_INIT', 'src/rt.c'],
+        [L(14.2), 'MsgReceivePulse · SCHED_FIFO', 'src/rt.c · src/main.c'],
+        [L(16.4), 'resmgr_attach · iofunc', 'src/control.c'],
+        [L(18.6), 'mkifs boot image', 'qnx/infusafe.build'],
+      ];
+      calls.forEach(([tc, code, file], i) => {
+        const s3 = back(seg(t, tc, tc + 0.35), 1.6), out = seg(t, tc + 2.0, tc + 2.25);
+        codePill(x, 640, 168, code, file, s3 * (1 - out * 0.15), 1 - out);
+      });
+      x.restore();
+    }
+
+    // ---- bugs QNX helped find
+    if (t > O.bug0 - 0.2 && t < O.bug1 + 0.6) {
+      const a = seg(t, O.bug0, O.bug0 + 0.4) * (1 - seg(t, O.bug1, O.bug1 + 0.5));
+      x.save(); x.globalAlpha = a;
+      text(x, '3 real bugs QNX helped me find', 640, 80, 54, '#ffffff');
+      const cards = [
+        ['The monitor printed', 'to a slow console', 'Now a low-priority', 'thread prints'],
+        ['Deadlock on one CPU', 'monitor waited on sensor', 'Now it never waits:', 'it uses the last reading'],
+        ['A bubble slipped past', 'a late check', 'Now air is a', 'running total'],
+      ];
+      cards.forEach((c, i) => {
+        const cx = 225 + i * 415, cy = 380, s4 = back(seg(t, O.bug0 + 0.5 + i * 0.5, O.bug0 + 0.9 + i * 0.5), 1.3);
+        const fix = seg(t, O.bug0 + 4.5 + i * 2.2, O.bug0 + 4.8 + i * 2.2);
+        x.save(); x.translate(cx, cy); x.scale(s4, s4);
+        slab(x, -185, -190, 370, 380, 36, fix > 0.5 ? ['#c8ffe0', '#38e08e', '#178a5a'] : ['#ffc1d8', '#ff5d8f', '#9a2775']);
+        x.restore();
+        if (s4 > 0.5) {
+          const on = fix > 0.5;
+          text(x, on ? c[2] : c[0], cx, cy - 30, 30, '#ffffff', { w: 900 });
+          text(x, on ? c[3] : c[1], cx, cy + 14, 28, '#ffffff', { w: 800 });
+          badge(x, cx, cy - 120, 38, on, back(seg(t, O.bug0 + 1.0 + i * 0.5, O.bug0 + 1.3 + i * 0.5), 2) * (on ? back(seg(t, O.bug0 + 4.5 + i * 2.2, O.bug0 + 4.9 + i * 2.2), 2.2) : 1));
+          pill(x, cx, cy + 110, on ? 'fixed and tested' : 'found on QNX', 28, { bg: on ? '#ffffff' : C.red, fg: on ? '#178a5a' : '#ffffff' });
+        }
+      });
+      pill(x, 640, 650, '30 of 30 tests pass on QNX', 32, { s: back(seg(t, O.bug0 + 11.0, O.bug0 + 11.4)), bg: C.yellow });
+      x.restore();
+    }
+
+    // ---- a complete product
+    if (t > O.prod0 - 0.2 && t < O.prod1 + 0.6) {
+      const a = seg(t, O.prod0, O.prod0 + 0.4) * (1 - seg(t, O.prod1, O.prod1 + 0.5));
+      x.save(); x.globalAlpha = a;
+      text(x, 'A complete safety product', 640, 80, 54, '#ffffff');
+      guardian(x, 1080, 420 + Math.sin(t * 2) * 6, 90, t, { happy: 1, armUp: 0.6 });
+      const items = ['Drug library with soft and hard limits', 'Live device: /dev/infusafe', 'Fault bench: 5 faults, timed', '30 unit tests, run on QNX', 'Boots from one QNX image'];
+      items.forEach((it, i) => {
+        const ti = O.prod0 + 0.8 + i * 1.3, s5 = back(seg(t, ti, ti + 0.35), 1.4);
+        const y = 190 + i * 92;
+        badge(x, 120, y, 26, true, back(seg(t, ti + 0.25, ti + 0.55), 2.2));
+        x.save(); x.globalAlpha *= s5; text(x, it, 170, y, 36, '#ffffff', { align: 'left', w: 800 }); x.restore();
+      });
+      x.restore();
+    }
+
+    // ---- end card
+    if (t > O.end0 - 0.2) {
+      const a = seg(t, O.end0, O.end0 + 0.4);
+      x.save(); x.globalAlpha = a;
+      planet(x, 640, 1180, 640, PL.teal, { glowA: 0.3, atmo: 1 });
+      guardian(x, 640, 400 + Math.sin(t * 2) * 6, 84 * back(seg(t, O.end0 + 0.2, O.end0 + 0.7)), t, { happy: 1, armUp: 1 });
+      const l1 = back(seg(t, O.end0 + 0.5, O.end0 + 0.9));
+      x.save(); x.translate(640, 120); x.scale(l1, l1); text(x, 'InfuSafe', 0, 0, 96, '#ffffff'); x.restore();
+      text(x, 'A real-time safety monitor for chemo pumps', 640, 200, 34, '#bfe9ff', { a: seg(t, O.end0 + 0.8, O.end0 + 1.1), w: 800 });
+      pill(x, 640, 560, 'github.com/KushagraRishi/infusafe-qnx', 32, { s: back(seg(t, O.end0 + 1.2, O.end0 + 1.55)), bg: '#ffffff' });
+      pill(x, 640, 640, 'Robotics & Medical · Built on QNX 8.0', 30, { s: back(seg(t, O.end0 + 1.5, O.end0 + 1.85)), bg: C.yellow });
+      if (t > O.end0 + 1.5) for (let i = 0; i < 7; i++) { const q = H.rng(500 + i); spark(x, q.range(120, 1160), q.range(60, 320), q.range(8, 15) * (0.5 + 0.5 * Math.sin(t * 3 + i)), '#ffffff', seg(t, O.end0 + 1.5, O.end0 + 1.9)); }
+      x.restore();
+    }
+    header(x, 1 - seg(t, O.term0 - 0.3, O.term0) + seg(t, O.term1, O.term1 + 0.4));
+    finish(x, W, H_, t);
+  }
+  window.outro = outro;
+
+  window.outroSound = function (k) {
+    const hz = k.hz;
+    const pluck = (t, n, g = 1, p = 0, minor = false) => { const f = hz(n);
+      k.tone(t, { f, dur: 0.9, gain: 0.2 * g, a: 0.003, pan: p, verb: 0.25, minor });
+      k.tone(t, { f: f * 2, type: 'triangle', dur: 0.32, gain: 0.045 * g, a: 0.003, pan: p, minor }); };
+    const boop = (t, f0, g = 1, p = 0) => k.tone(t, { f: [[0, f0], [0.07, f0 * 1.45], [0.16, f0 * 1.3]], dur: 0.2, gain: 0.17 * g, a: 0.008, pan: p, verb: 0.15, minor: true });
+    const chord = (t, notes, g = 1, dur = 2.2) => notes.forEach((n, i) => k.tone(t + i * 0.012, { f: n, type: 'triangle', dur, gain: 0.07 * g, a: 0.02, verb: 0.35, filter: 'lowpass', f2: 1800 }));
+    // live on QNX
+    k.play('boot', 0.4, { gain: 0.8 }); pluck(1.1, 'E4', 0.8);
+    k.play('whoosh', 2.2, { dur: 1.0, gain: 0.7 }); k.play('crtOn', O.term0, { gain: 0.6 });
+    // the terminal types: soft keys under each typed command would need the replay timing, so keep a quiet room tone instead
+    k.play('whoosh', O.term1 - 0.2, { dur: 0.8, gain: 0.6 });
+    // how it uses QNX
+    const L = (d) => O.arch0 + d;
+    pluck(L(0.2), 'C4', 0.8); k.play('thud', L(0.9), { f: 110, gain: 0.5 });
+    [[1.6, 'E4'], [2.2, 'G4'], [2.8, 'C5']].forEach(([d, n]) => { boop(L(d + 0.3), hz(n) / 2, 0.9); pluck(L(d + 0.4), n, 0.6, 0, true); });
+    for (let tt = L(4.4); tt < L(11.5); tt += 0.62) k.play('blip', tt, { f: 'E6', dur: 0.04, gain: 0.4, minor: true });
+    pluck(L(4.7), 'D4', 0.7); pluck(L(7.6), 'F4', 0.7); pluck(L(9.6), 'A4', 0.7);
+    [12.0, 14.2, 16.4, 18.6].forEach((d, i) => { k.play('typing', L(d), { n: 5, rate: 0.05, gain: 0.5 }); k.play('pop', L(d + 0.3), { f: 600 + i * 80, gain: 0.5 }); });
+    // bugs
+    [0.5, 1.0, 1.5].forEach((d, i) => k.play('pop', O.bug0 + d + 0.35, { f: 500 + i * 70, gain: 0.6 }));
+    [0, 1, 2].forEach((i) => k.play('error', O.bug0 + 1.1 + i * 0.5, { gain: 0.35, minor: true }));
+    [0, 1, 2].forEach((i) => k.play('success', O.bug0 + 4.7 + i * 2.2, { gain: 0.7 }));
+    chord(O.bug0 + 11.2, ['C3', 'G3', 'C4', 'E4'], 0.9, 1.6);
+    // product checklist
+    for (let i = 0; i < 5; i++) { k.play('tock', O.prod0 + 0.8 + i * 1.3 + 0.1, { f: 600 + i * 50, gain: 0.4 }); pluck(O.prod0 + 0.8 + i * 1.3 + 0.35, ['C5', 'D5', 'E5', 'G5', 'A5'][i], 0.6, 0, true); }
+    // end
+    k.play('whoosh', O.end0 - 0.1, { dur: 0.7, gain: 0.6 });
+    boop(O.end0 + 0.6, 400, 1); pluck(O.end0 + 0.8, 'E4', 1.0);
+    chord(O.end0 + 1.6, ['C3', 'G3', 'C4', 'E4', 'G4', 'D5'], 1.1, 3.0); k.play('sparkle', O.end0 + 1.7, { gain: 0.6, n: 6 });
+  };
+
   // ================= EXPLAINER =================
   function explainer(ctx, W, H_, t) {
     const x = ctx;
