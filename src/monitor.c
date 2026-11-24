@@ -178,14 +178,24 @@ int monitor_status_json(monitor_t *m, char *buf, size_t len)
 
     uint64_t ticks = m->ticks > 1 ? m->ticks - 1 : 1;
     return snprintf(buf, len,
-        "{\"drug\":\"%s\",\"state\":\"%s\",\"reason\":\"%s\","
-        "\"motor\":%d,\"set_rate_ml_h\":%.1f,\"flow_ml_h\":%.1f,"
-        "\"downstream_mmhg\":%.1f,\"upstream_mmhg\":%.1f,"
-        "\"volume_ml\":%.3f,\"target_ml\":%.1f,"
-        "\"tick_hz\":1000,\"ticks\":%" PRIu64 ","
-        "\"period_us\":{\"min\":%.1f,\"avg\":%.1f,\"max\":%.1f},"
-        "\"eval_max_us\":%.1f,\"events\":%u,"
-        "\"last_stop_ms\":%.3f}\n",
+        "{\n"
+        "  \"drug\": \"%s\",\n"
+        "  \"state\": \"%s\",\n"
+        "  \"reason\": \"%s\",\n"
+        "  \"motor\": %d,\n"
+        "  \"set_rate_ml_h\": %.1f,\n"
+        "  \"flow_ml_h\": %.1f,\n"
+        "  \"downstream_mmhg\": %.1f,\n"
+        "  \"upstream_mmhg\": %.1f,\n"
+        "  \"volume_ml\": %.3f,\n"
+        "  \"target_ml\": %.1f,\n"
+        "  \"tick_hz\": 1000,\n"
+        "  \"ticks\": %" PRIu64 ",\n"
+        "  \"period_us\": {\"min\": %.1f, \"avg\": %.1f, \"max\": %.1f},\n"
+        "  \"eval_max_us\": %.1f,\n"
+        "  \"events\": %u,\n"
+        "  \"last_stop_ms\": %.3f\n"
+        "}\n",
         m->drug ? m->drug->name : "?",
         safety_verdict_name(v), safety_reason_name(r),
         atomic_load(&m->pump.motor_on), s.set_rate_ml_h, s.flow_ml_h,
