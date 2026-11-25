@@ -1,137 +1,167 @@
 # InfuSafe pitch: what to say on each slide
 
-About 8 minutes in total. Speak slowly. Each slide's animation plays by itself, so start talking once the slide appears.
+About 9 minutes in total. Speak slowly. Each slide builds itself and the video clips play on their own, so just start talking when the slide appears.
 
 ---
 
 ## Slide 1. InfuSafe
 
-Hi, I'm Kushagra Chaudhary. This is InfuSafe.
+Hi, I'm Kushagra Chaudhary, and this is InfuSafe.
 
-When someone gets chemo, a machine called an infusion pump pushes the drug into their vein. InfuSafe is a safety guardian for that pump. It watches the pump a thousand times every second, and it stops the pump the moment something goes wrong. I built it on QNX 8.0.
-
----
-
-## Slide 2. The challenge
-
-This hackathon's Robotics and Medical track asked for one thing: real-time systems where timing, safety, or reliability is critical.
-
-So I asked myself, where does timing matter most? I think it's right here: a chemo drug going into a patient's vein. If something goes wrong, every second counts.
+When someone gets chemo, a machine called an infusion pump pushes the drug into their vein. InfuSafe is a safety check for that pump. It watches the pump a thousand times every second, and stops it the moment something goes wrong. I built it on QNX 8.0.
 
 ---
 
-## Slide 3. The problem
+## Slide 2. Safety is our first priority
 
-A chemo pump can hurt a patient in three common ways.
+For us, safety comes first.
 
-First, the tube gets kinked. The drug stops flowing, and pressure builds up in the line.
+Chemo is strong medicine. A small mistake can hurt a patient very fast.
 
-Second, air gets into the line, and a bubble moves toward the vein.
+Pumps already have alarms. But an alarm only helps if it runs on time.
 
-Third, someone types the wrong number. For example, 500 instead of 50. That is ten times the dose.
+So we built a safety check that is always on time, every single millisecond.
 
 ---
 
-## Slide 4. It really happens
+## Slide 3. How a chemo infusion works
 
-This is a real case. A patient was supposed to get a chemo drug slowly, over 46 hours. But the pump was set up wrong, and the whole dose went in within about 2 hours. The patient had to be admitted to hospital.
+Let me show you how it works, with real footage.
+
+First, the drug hangs in a bag above the patient, and you can see it dripping.
+
+Second, a nurse types in the speed, and the pump pushes the drug.
+
+Third, a thin tube carries it into the patient's vein. This can go on for hours, or even days.
+
+---
+
+## Slide 4. Three ways it can go wrong
+
+Now, three things can go wrong.
+
+One: the tube gets kinked. The drug stops flowing, and pressure builds up.
+
+Two: air gets into the line, and a bubble moves toward the vein.
+
+Three: someone types the wrong number. 500 instead of 50. That's ten times the dose.
+
+---
+
+## Slide 5. It really happens
+
+And this really happens. A patient was supposed to get a chemo drug slowly, over 46 hours. The pump was set up wrong, and the whole dose went in within about 2 hours. The patient had to be admitted to hospital.
 
 One wrong setting. That's all it took.
 
 ---
 
-## Slide 5. How often
+## Slide 6. How often
 
-And this is not rare. In just five years, the FDA got about 56,000 reports of problems with infusion pumps. There were 87 recalls, and 14 of them were in the most serious class.
+It's not rare. In five years, the FDA got about 56,000 reports of pump problems. There were 87 recalls, and 14 of them were in the most serious class.
 
-It's still happening. In 2024, a pump was recalled because a software bug could let an air bubble reach the patient. Two people were hurt. A software safety bug. That is exactly the kind of problem I want to stop.
-
----
-
-## Slide 6. The gap
-
-Here is the hidden problem. A safety check only helps if it runs on time.
-
-In many systems, one program does everything: the screen, the buttons, the motor, the logs. When it gets busy, the safety check has to wait in line.
-
-I measured this myself. My check was supposed to run every 1 millisecond. On a normal Linux setup, it was sometimes 65 milliseconds late. The check was right, but it came too late.
+And it's still happening. In 2024, a pump was recalled because a software bug could let an air bubble reach the patient. Two people were hurt.
 
 ---
 
-## Slide 7. Our solution
+## Slide 7. The gap
 
-So I built InfuSafe. Think of it as a guardian that never looks away.
+Here's the hidden problem. A safety check only helps if it runs on time.
 
-It sits beside the pump as its own separate monitor. It checks the flow, the pressure and the air a thousand times a second. It blocks unsafe doses before the pump even starts, so 500 instead of 50 never runs. It stops the pump in milliseconds. And it's easy to check and test, because it shows up as a simple device file.
+In many systems, one program runs everything: the screen, the buttons, the motor and the alarms. When it gets busy, the safety check waits in line.
+
+I measured this. My check was planned for every 1 millisecond. On a normal Linux setup, it was sometimes 65 milliseconds late. The check was right, but it came too late.
 
 ---
 
-## Slide 8. Who it helps
+## Slide 8. Our solution
+
+So we built InfuSafe, a safety check that is never late.
+
+It reads the pump's sensors: flow, pressure and air. It runs on QNX, checks them every millisecond, and always has the highest priority.
+
+Before the pump starts, it checks the dose against a drug library, so 500 instead of 50 never runs.
+
+If anything goes wrong, it stops the motor in milliseconds, or sounds an alarm.
+
+---
+
+## Slide 9. Watch it catch a blocked line
+
+This is real output from QNX 8.0, not a mockup.
+
+I block the line. InfuSafe stops the pump in about 9 milliseconds, and you can see the status change to STOP.
+
+In the full demo, it also refuses a rate of 500, starts safely at 50, and stops an air bubble in about 3 milliseconds.
+
+---
+
+## Slide 10. Who it helps
 
 This helps everyone around the infusion.
 
-Patients: overdoses, air bubbles and blocked lines get stopped before they can do harm.
-Nurses: they get a second set of eyes that catches a typo.
-Hospitals: an extra layer of protection on every pump.
+Patients: overdoses, air bubbles and blocked lines get stopped.
+Nurses: a second check on every number they type.
+Hospitals: an extra safety layer on every pump.
 And pump makers: a ready, open-source safety layer they can build on.
 
 ---
 
-## Slide 9. Why QNX
+## Slide 11. Built to scale
 
-Why did I use QNX? Because the whole idea is timing.
+And this can help at a big scale.
 
-On QNX, safety always goes first. My safety check runs at the highest priority, and nothing can push it aside. The QNX kernel itself wakes the monitor every millisecond, like a heartbeat. And the parts stay separate, so one fault does not spread.
+About 9 in 10 hospital patients get medicine through an IV, and most of it runs through pumps.
 
-On the right, you can see exactly where each QNX feature lives in my code, so the judges can check it.
-
----
-
-## Slide 10. Live demo
-
-Here it is, running for real on QNX 8.0.
-
-(Click the video to play it.)
-
-QNX boots from my own system image. I try to start the pump at 500, and it refuses. At 50, it starts safely. Then I block the line, and InfuSafe stops the pump in about 9 milliseconds. Then I send in an air bubble, and it stops in about 3.
+InfuSafe is software only, so it can be added to any pump that has the right sensors. It's tiny: it uses about 0.1 percent of one processor. It runs on QNX on both Intel and ARM chips. One drug library can protect every pump in a hospital. And it's open source, with a test bench any pump maker can run.
 
 ---
 
-## Slide 11. Results
+## Slide 12. Why QNX
 
-So how well does it work? I tested every fault 20 times. That's 100 tests, and InfuSafe caught all 100. Not one was missed.
+Why QNX? Because the whole idea is timing.
 
-An air bubble is stopped in about 3 milliseconds. A blocked line in about 10. Free flow takes about 50, on purpose, so a tiny spike doesn't stop the pump for no reason. And the safety check itself takes less than one millionth of a second.
+On QNX, safety always goes first. The QNX kernel itself wakes our monitor every millisecond, like a heartbeat. And the microkernel keeps one fault from spreading.
+
+This is the real code that does it. The rest of the QNX work, like the resource manager and our own boot image, is listed on the right.
 
 ---
 
-## Slide 12. Real engineering
+## Slide 13. Results
+
+I tested every fault 20 times. That's 100 tests, and InfuSafe caught all 100. Not one was missed.
+
+An air bubble is stopped in about 3 milliseconds. A blocked line in about 10. Free flow takes about 50, on purpose, so a tiny spike doesn't stop the pump for nothing. And the safety check itself takes less than one millionth of a second.
+
+---
+
+## Slide 14. Real engineering
 
 Testing on QNX also found three real bugs in my code, and I fixed all three.
 
-The monitor could be held up by printing to the screen. Now a low-priority helper does the printing.
-Two parts of the program could freeze each other. Now the monitor never waits.
+The monitor could be held up by printing to the screen. Now a low-priority helper prints.
+Two parts could freeze each other. Now the monitor never waits.
 And a bubble could slip past a late check. Now it catches 20 out of 20.
 
-This is exactly why safety code should be tested on a real-time system.
+That's why safety code should be tested on a real-time system.
 
 ---
 
-## Slide 13. Built to meet every judging point
+## Slide 15. Built to meet every judging point
 
 To sum up.
 
-Technology: InfuSafe uses real QNX features: timer pulses, real-time priorities, a resource manager, and my own QNX boot image.
-Design: it's a complete product, not just a test.
-Impact: it targets a real, documented danger in hospitals.
-Innovation: safety lives in its own real-time guardian that anyone can test.
+Technology: real QNX features, like timer pulses, real-time priorities, a resource manager and our own boot image.
+Design: a complete product, not just a test.
+Impact: a real, documented danger in hospitals.
+Innovation: safety as its own real-time check that anyone can test.
 
 ---
 
-## Slide 14. Thank you
+## Slide 16. Thank you
 
 Next, I want to run InfuSafe on real pump hardware, split it into separate QNX processes, and work toward medical safety certification.
 
 Because safety should never have to wait.
 
-Thank you. All my code is on GitHub. I'm happy to take your questions.
+Thank you. All the code is on GitHub. I'm happy to take your questions.
