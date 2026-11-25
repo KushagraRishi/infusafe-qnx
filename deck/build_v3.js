@@ -184,8 +184,8 @@ async function icon(Comp, color) {
   // ============ 9. See it catch a fault ============
   s = content('The solution', 'LIVE ON QNX 8.0', 'Watch it catch a blocked line');
   loop(s, 'qnx_block.gif', 0.7, 1.9, 6.4, 3.688, 'a1|real QNX terminal catching a blocked line');
-  blist(s, ['QNX 8.0 boots from our own system image', 'A rate of 500 is refused before the pump starts', 'At 50, the pump starts safely', 'We block the line: stopped in 9 ms', 'We add an air bubble: stopped in 3 ms'], 7.25, 1.95, 5.35, 3.6, 'a2|demo bullets', 18);
-  tag(s, 'Real QNX output, not a mockup', 7.25, 5.75, 3.6, X.accent6, 'a3|real tag');
+  blist(s, ['QNX 8.0 boots from our own system image', 'A rate of 500 is refused before the pump starts', 'At 50, the pump starts safely', 'We block the line: stopped in 9 ms', 'We add an air bubble: stopped in 3 ms'], 7.55, 1.95, 5.05, 3.6, 'a2|demo bullets', 18);
+  tag(s, 'Real QNX output, not a mockup', 7.55, 5.75, 3.6, X.accent6, 'a3|real tag');
 
   // ============ 10. Who it helps ============
   s = content('The solution', 'WHO IT HELPS', 'More safety for everyone around the infusion');
